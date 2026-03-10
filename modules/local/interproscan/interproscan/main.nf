@@ -5,34 +5,36 @@ process INTERPROSCAN_INTERPROSCAN {
     containerOptions "--bind ${db}/data:/opt/interproscan/data"
 
     input:
-    tuple val(meta) , path(faa)
+    tuple val(meta) , path(faa_gz)
     path(db)
 
     output:
     tuple val(meta), path("${meta.id}.interproscan.tsv.gz") , emit: tsv_gz
+    path(".command.log")                                    , emit: log
+    path(".command.sh")                                     , emit: script
 
     script:
     """
-    ### Run InterProScan ###
-    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
-
-    gunzip -c -f ${faa} > ${faa.getBaseName()}
+    ### Decompress
+    gunzip -c -f ${faa_gz} > ${faa_gz.getBaseName()}
     # replace all '*' characters to avoid InterProScan errors
-    sed -i 's/*//g' ${faa.getBaseName()}
+    sed -i 's/*//g' ${faa_gz.getBaseName()}
+
+    ### Run InterProScan
+    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
 
     bash ./${db}/interproscan.sh \\
         -cpu ${task.cpus} \\
         -dp \\
         --goterms \\
-        --input ${faa.getBaseName()} \\
+        --input ${faa_gz.getBaseName()} \\
         --output-file-base ${meta.id}.interproscan
 
-    ### Compress outputs ###
+    ### Compress
     gzip ${meta.id}.interproscan.tsv
-    # TODO: Replace with pigz
 
-    ### Cleanup ###
+    ### Cleanup
     rm -rf ${meta.id}.interproscan.xml ${meta.id}.interproscan.json ${meta.id}.interproscan.gff3 \\
-        ${faa.getBaseName()} temp
+        ${faa_gz.getBaseName()} temp
     """
 }

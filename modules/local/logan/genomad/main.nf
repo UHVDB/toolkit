@@ -1,9 +1,9 @@
 process LOGAN_GENOMAD {
     tag "${meta.id}"
-    label 'process_super_high'
+    label 'process_high'
     maxForks 100
-    container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/b0/b0fbdf77eb8d37f15eb61ec05159f0d862f48bc7beb2ac34303972f1dba43119/data"
-    // Singularity: https://wave.seqera.io/view/builds/bd-cbd9ffe41f9a6d49_1?_gl=1*14ltsrk*_gcl_au*NjY1ODA2Mjk0LjE3NjM0ODUwMTIuOTE2NTY5NTQzLjE3NjY0MjU0MjkuMTc2NjQyNTQyOA..
+    container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/0c/0c39703d881069a69d14e68d12258fd1a93f2a9bd17870f6f6ab39a6b63e094f/data"
+    // Singularity: https://wave.seqera.io/view/builds/bd-30e54ab816eb9c63_1?_gl=1*9mafpw*_gcl_au*MTI1MzgxOTA5MC4xNzY4MjM1MzM1
 
     input:
     tuple val(meta), val(urls)
@@ -13,48 +13,65 @@ process LOGAN_GENOMAD {
     tuple val(meta), path("${meta.id}_virus.fna.gz")            , emit: fna_gz
     tuple val(meta), path("${meta.id}_virus_summary.tsv.gz")    , emit: summary_tsv_gz
     tuple val(meta), path("${meta.id}_virus_genes.tsv.gz")      , emit: genes_tsv_gz
-    path "versions.yml"                                         , emit: versions
+    path(".command.log")                                        , emit: log
+    path(".command.sh")                                         , emit: script
 
     script:
-    def url_list        = urls.collect { sample_url -> sample_url[2].toString() }.join(',')
+    def url_list        = urls.collect { sample_url -> sample_url[1].toString() }.join(',')
+    def filter1         = '( ( \$virus_score >= 0.7 && \$length >= 2000 ) || ( \$taxonomy =~ "Inoviridae" ) )'
+    def filter2         = '!( \$taxonomy =~ "Caudoviricetes" && \$length < 10000 )'
+    def filter3         = '!( \$taxonomy =~ "Inoviridae" && ( \$length < 4500 || \$length > 12500 ) )'
+    def filter4         = '!( \$taxonomy == "Unclassified" )'
+    def filter5         = '( ( \$taxonomy =~ "viricetes" ) || ( \$taxonomy =~ "Anelloviridae" ) )'
     """
-    # create arrays to iterate over
+    ### Create arrays
     IFS=',' read -r -a url_array <<< "${url_list}"
 
-    ### Download logan assemblies
+    ### Download assemblies
     printf "%s\n" "\${url_array[@]}" | xargs -I{} -n 1 -P ${task.cpus} bash -c \\
-    'aws s3 cp {} tmp --no-sign-request'
+    'aws s3 cp {} ./tmp/ --no-sign-request'
 
     ### Remove short contigs
     mkdir -p tmp/
     seqkit \\
         seq \\
         --threads ${task.cpus} \\
-        --min-len ${params.classify_min_length} \\
+        --min-len 2000 \\
         tmp/*.fa.* \\
         --out-file combined_filtered.fasta.gz
 
-    rm tmp/
+    rm -rf tmp/
 
-    ### Identify viruses ###
+    ### Run geNomad
     genomad \\
         end-to-end \\
         combined_filtered.fasta.gz \\
-        ./ \\
+        genomad_results \\
         ${genomad_db} \\
         --threads ${task.cpus} \\
-        ${params.classify_genomad_args}
+        --splits 5 --relaxed
 
-    # save virus outputs
-    gzip -c *_summary/*_virus.fna > ${meta.id}_virus.fna.gz
-    gzip -c *_summary/*_virus_summary.tsv > ${meta.id}_virus_summary.tsv.gz
-    gzip -c *_summary/*_virus_genes.tsv > ${meta.id}_virus_genes.tsv.gz
+    ### Save virus outputs
+    gzip -c genomad_results/*_summary/*_virus_summary.tsv > ${meta.id}_virus_summary.tsv.gz
+    gzip -c genomad_results/*_summary/*_virus_genes.tsv > ${meta.id}_virus_genes.tsv.gz
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        awscli: \$( aws --version | sed 's/aws-cli\\///; s/ Python.*//' )
-        seqkit: \$(seqkit version | cut -d' ' -f2)
-        genomad: \$(echo \$(genomad --version 2>&1) | sed 's/^.*geNomad, version //; s/ .*\$//')
-    END_VERSIONS
+    ### Remove LQ
+    csvtk filter2 \\
+        ${meta.id}_virus_summary.tsv.gz \\
+        --tabs \\
+        --filter '${filter1} && ${filter2} && ${filter3} && ${filter4} && ${filter5}' \\
+        --num-cpus ${task.cpus} \\
+    | csvtk cut --tabs \\
+        --fields "seq_name" \\
+        --out-file ${meta.id}_filtered_genomad.txt
+
+    seqkit grep \\
+        genomad_results/*_summary/*_virus.fna \\
+        --threads ${task.cpus} \\
+        --pattern-file ${meta.id}_filtered_genomad.txt \\
+        --out-file ${meta.id}_virus.fna.gz
+
+    ### Cleanup
+    rm -rf genomad_results/ combined_filtered.fasta.gz ${meta.id}_filtered_genomad.txt
     """
 }

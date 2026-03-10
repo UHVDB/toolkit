@@ -8,24 +8,26 @@ process BACPHLIP {
     tuple val(meta), path(fna_gz)
 
     output:
-    tuple val(meta) , path("${meta.id}.bacphlip.tsv.gz") , emit: tsv_gz
+    tuple val(meta) , path("${meta.id}.bacphlip.tsv.gz")    , emit: tsv_gz
+    path ".command.log"                                     , emit: log
+    path ".command.sh"                                      , emit: script
 
     script:
     """
-    ### Gunzip FNA ###
-    gunzip -c ${fna_gz} > ${fna_gz.getBaseName()}
+    ### Decompress
+    gunzip -c ${fna_gz} > ${meta.id}.fna
 
-    ### Run BACPHLIP ###
+    ### Run BACPHLIP
     bacphlip \\
-        --input_file ${fna_gz.getBaseName()} \\
+        --input_file ${meta.id}.fna \\
         --force_overwrite \\
         --multi_fasta
 
     ### Compress
-    mv ${fna_gz.getBaseName()}.bacphlip ${meta.id}.bacphlip.tsv
-    gzip ${fna_gz.getBaseName()}.bacphlip.tsv
+    mv ${meta.id}.fna.bacphlip ${meta.id}.bacphlip.tsv
+    gzip ${meta.id}.bacphlip.tsv
 
     ### Cleanup
-    rm -rf ${fna_gz.getBaseName()} ${fna_gz.getBaseName()}.BACPHLIP_DIR/ ${fna_gz.getBaseName()}.hmmsearch.tsv
+    rm -rf ${meta.id} ${meta.id}.BACPHLIP_DIR/ ${meta.id}.hmmsearch.tsv ${meta.id}.fna
     """
 }

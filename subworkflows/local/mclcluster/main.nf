@@ -12,7 +12,6 @@ workflow MCLCLUSTER {
     take:
     matrix_clusters         // channel: [ [ meta ], matrix.tsv.gz, clusters.mcl.gz ]
     similarity_threshold    // val: float
-    publish_dir             // val: string
 
     main:
 
@@ -45,7 +44,6 @@ workflow MCLCLUSTER {
     //--------------------------------------------
     MCL(
         UHVDB_PRUNE.out.tsv_gz,
-        publish_dir
     )
 
     emit:

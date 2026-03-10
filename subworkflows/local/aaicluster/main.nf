@@ -42,13 +42,11 @@ workflow AAICLUSTER {
 
     main:
 
-    if (file("${params.uhvdb_dir}/*_species_reps.fna.gz").isEmpty()) {
-        log.warn "UHVDB species reps fasta does not exist: ${params.uhvdb_dir}/*_species_reps.fna.gz"
-        log.warn "Performing all-v-all AAIcluster."
-        ch_ref_fna_gz = taxa_virus_fna_gz
-    } else {
+    if ( file("${params.uhvdb_dir}/*_species_reps.fna.gz").size() > 0 ) {
         ch_ref_fna_gz = channel.fromPath("${params.uhvdb_dir}/*_species_reps.fna.gz")
-            .map { fna_gz -> [ [ id: 'uhvdb_species_reps' ], fna_gz ] }
+            .map { fna_gz -> taxa = fna_gz.getBaseName().split('_species_reps')[0]; [ [ id: "${taxa}_species_reps", taxa: taxa ], fna_gz ] }
+    } else {
+        ch_ref_fna_gz = taxa_virus_fna_gz
     }
 
     //-------------------------------------------
@@ -62,7 +60,7 @@ workflow AAICLUSTER {
     //--------------------------------------------
     SEQKIT_SPLIT2(
         taxa_virus_fna_gz,
-        params.fasta_chunk_size
+        10000
     )
     ch_taxa_split_viruses_fna_gz = SEQKIT_SPLIT2.out.fastas_gz
         .map { _meta, fna_gzs -> fna_gzs }
@@ -72,40 +70,81 @@ workflow AAICLUSTER {
             [ [ id: fna_gz.getBaseName(), taxa: taxa[0][1] ], fna_gz ]
         }
 
-    //
-    // MODULE: Create DIAMOND database reference
-    //
+    //-------------------------------------------
+    // MODULE: DIAMOND_MAKEDB
+    // inputs:
+    // - [ [ meta ], virus.taxa_reps.fna.gz ]
+    // outputs:
+    // - [ [ meta ], virus.taxa_reps.dmnd ]
+    // steps:
+    // - Convert FNA to FAA (script)
+    // - Create DIAMOND database (script)
+    // - Cleanup (script)
+    //--------------------------------------------
     DIAMOND_MAKEDB(
         ch_ref_fna_gz
     )
 
-    //
-    // MODULE: Run DIAMOND for each split against the reference 
-    //
+    //-------------------------------------------
+    // MODULE: DIAMOND_BLASTP
+    // inputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.fna.gz ]
+    // - [ [ meta ], virus.taxa_reps.dmnd ]
+    // outputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.blastp.tsv.gz ]
+    // - [ [ meta ], virus.taxa_reps.part_*.faa.gz ]
+    // steps:
+    // - Convert FNA to FAA (script)
+    // - Run DIAMOND (script)
+    // - Compress (script)
+    //--------------------------------------------
     ch_diamond_blastp_input = ch_taxa_split_viruses_fna_gz.map { meta, fna_gz -> [ meta.taxa, meta, fna_gz ] }
-        .combine(DIAMOND_MAKEDB.out.dmnd.map { meta, fna_gz -> [ meta.taxa, meta, fna_gz ] }, by:0)
+        .combine(DIAMOND_MAKEDB.out.dmnd.map { meta, dmnd -> [ meta.taxa, meta, dmnd ] }, by:0)
         .map { _taxa, meta, fna_gz, _meta2, dmnd -> [ meta, fna_gz, dmnd ] }
     DIAMOND_BLASTP(
         ch_diamond_blastp_input
     )
 
-    //
-    // MODULE: Run DIAMOND against self to calculate self scores
-    //
+    //-------------------------------------------
+    // MODULE: DIAMOND_BLASTPSELF
+    // inputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.faa.gz ]
+    // outputs:
+    // - [ [ meta ],  virus.taxa_reps.part_*.blastpself.tsv.gz ]
+    // steps:
+    // - Make self DB (script)
+    // - Align to self (script)
+    // - Compress (script)
+    // - Cleanup (script)
+    //--------------------------------------------
     DIAMOND_BLASTPSELF(
         DIAMOND_BLASTP.out.faa_gz
     )
 
-    //
-    // MODULE: Calculate self scores
-    //
+    //-------------------------------------------
+    // MODULE: PROTEINSIMILARITY_SELFSCORE
+    // inputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.blastpself.tsv.gz ]
+    // outputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.selfscore.tsv.gz ]
+    // steps:
+    // - Calculate self score (script)
+    // - Compress (script)
+    //--------------------------------------------
     PROTEINSIMILARITY_SELFSCORE(
         DIAMOND_BLASTPSELF.out.tsv_gz
     )
 
-    //
-    // MODULE: Calculate normalized bitscore
-    //
+    //-------------------------------------------
+    // MODULE: PROTEINSIMILARITY_NORMSCORE
+    // inputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.selfscore.tsv.gz, virus.taxa_reps.part_*.blastp.tsv.gz ]
+    // outputs:
+    // - [ [ meta ], virus.taxa_reps.part_*.normscore.tsv.gz ]
+    // steps:
+    // - Calculate normalized score (script)
+    // - Compress (script)
+    //--------------------------------------------
     ch_normscore_input = PROTEINSIMILARITY_SELFSCORE.out.tsv_gz
         .combine(DIAMOND_BLASTP.out.tsv_gz, by:0)
     PROTEINSIMILARITY_NORMSCORE(
@@ -121,11 +160,13 @@ workflow AAICLUSTER {
     // steps:
     // - Combine files (script)
     //--------------------------------------------
-    // TODO: groupTuple by taxa here
-    ch_catnoheader_input = PROTEINSIMILARITY_NORMSCORE.out.tsv_gz.map { meta, tsv_gz -> [ meta.taxa, meta, tsv_gz ] }.groupTuple().map { meta_taxa, _meta, tsv_gz -> [ [ id:meta_taxa ], tsv_gz, 'tsv.gz' ] }
+    ch_catnoheader_input = PROTEINSIMILARITY_NORMSCORE.out.tsv_gz
+        .map { meta, tsv_gz -> [ meta.taxa, meta, tsv_gz ] }
+        .groupTuple()
+        .map { meta_taxa, _meta, tsv_gz -> [ [ id:meta_taxa ], tsv_gz, 'tsv.gz' ] }
     UHVDB_CATNOHEADER(
         ch_catnoheader_input,
-        "${params.output_dir}/${params.new_release_id}/compare/aaicluster/"
+        "${params.output_dir}/${params.new_release_id}/uhvdb/aaicluster/"
     )
 
     //-------------------------------------------
@@ -154,7 +195,6 @@ workflow AAICLUSTER {
     //--------------------------------------------
     MCL(
         CSVTK_FILTER2.out.tsv_gz,
-        "${params.output_dir}/${params.new_release_id}/compare/aaicluster/family_mcl/"
     )
 
     //-------------------------------------------
@@ -172,9 +212,8 @@ workflow AAICLUSTER {
     ch_mcl_subfamily_input = rmEmptyTsvs(CSVTK_FILTER2.out.tsv_gz).combine(rmEmptyTsvs(MCL.out.mcl_gz), by:0)
     MCLCLUSTER_SUBFAMILY(
         ch_mcl_subfamily_input,
-        32.0,
-        "${params.output_dir}/${params.new_release_id}/compare/aaicluster/subfamily_mcl/"
-    )
+        32.0
+        )
 
     //-------------------------------------------
     // SUBWORKFLOW: MCLCLUSTER_GENUS
@@ -191,8 +230,7 @@ workflow AAICLUSTER {
     ch_mcl_genus_input = rmEmptyTsvs(CSVTK_FILTER2.out.tsv_gz).combine(rmEmptyTsvs(MCLCLUSTER_SUBFAMILY.out.mcl_gz), by:0)
     MCLCLUSTER_GENUS(
         ch_mcl_genus_input,
-        65.0,
-        "${params.output_dir}/${params.new_release_id}/compare/aaicluster/genus_mcl/"
+        65.0
     )
 
     //-------------------------------------------
@@ -210,8 +248,7 @@ workflow AAICLUSTER {
     ch_mcl_subgenus_input = rmEmptyTsvs(CSVTK_FILTER2.out.tsv_gz).combine(rmEmptyTsvs(MCLCLUSTER_GENUS.out.mcl_gz), by:0)
     MCLCLUSTER_SUBGENUS(
         ch_mcl_subgenus_input,
-        80.0,
-        "${params.output_dir}/${params.new_release_id}/compare/aaicluster/subgenus_mcl/"
+        80.0
     )
 
     // emit:

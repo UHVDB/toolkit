@@ -6,10 +6,13 @@ process GENOMAD_DOWNLOADDATABASE {
     tag "geNomad v1.9; db v1.11"
 
     output:
-    path "genomad_db/"  , emit: genomad_db
+    path "genomad_db/"      , emit: genomad_db
+    path(".command.log")    , emit: log
+    path(".command.sh")     , emit: script
 
     script:
     """
+    ### Download genomad's database
     genomad \\
         download-database .
     """

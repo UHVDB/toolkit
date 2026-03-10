@@ -5,21 +5,22 @@ process PHOLD_COMPARE {
     conda "${moduleDir}/environment.yml"
 
     input:
-    tuple val(meta) , path(gbk), path(predict)
+    tuple val(meta) , path(faa_gz), path(predict)
     path(db)
 
     output:
-    tuple val(meta), path("${meta.id}.phold.gbk.gz")    , emit: gbk_gz
     tuple val(meta), path("${meta.id}.phold.tsv.gz")    , emit: tsv_gz
+    path(".command.log")                                , emit: log
+    path(".command.sh")                                 , emit: script
 
     script:
     """
     ### Decompress
-    gunzip -f -c ${gbk} > ${gbk.getBaseName()}
+    gunzip -f -c ${faa_gz} > ${meta.id}.faa
 
     ### Run phold
-    phold compare \\
-        --input ${gbk.getBaseName()} \\
+    phold proteins-compare \\
+        --input ${meta.id}.faa \\
         --predictions_dir ${predict} \\
         --threads ${task.cpus} \\
         --database ${db} \\
@@ -27,16 +28,14 @@ process PHOLD_COMPARE {
 
     ### Compress
     mv ${meta.id}_phold/phold_per_cds_predictions.tsv ${meta.id}.phold.tsv
-    mv ${meta.id}_phold/phold.gbk ${meta.id}.phold.gbk
 
     gzip ${meta.id}.phold.tsv
-    gzip ${meta.id}.phold.gbk
 
     ### Cleanup
     rm -rf ${meta.id}_phold/logs ${meta.id}_phold/sub_db_tophits \\
         ${meta.id}_phold/phold_3di.fasta ${meta.id}_phold/phold_aa.fasta \\
         ${meta.id}_phold/phold_all_cds_functions.tsv \\
-        ${meta.id}_phold/phold_run*.log ${gbk.getBaseName()}_phold \\
-        ${gbk.getBaseName()}
+        ${meta.id}_phold/phold_run*.log ${meta.id}_phold \\
+        ${meta.id}.faa
     """
 }

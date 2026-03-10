@@ -5,20 +5,21 @@ process EMPATHI_INSTALL {
     storeDir "${params.db_dir}/empathi/1.0.6"
     tag "Empathi v1.0.6"
     
-
     output:
     path("empathi/models/") , emit: models
+    path(".command.log")    , emit: log
+    path(".command.sh")     , emit: script
 
     script:
     """
-    # install git-lfs
+    ### Install git lfs
     git lfs install
 
-    # clone empathi repo
+    ### Clone empathi
     git clone https://huggingface.co/AlexandreBoulay/empathi
     export PATH="empathi/models:\$PATH"
 
-    # install empathi software
+    ### Install empathi
     export PIP_CACHE_DIR=${params.db_dir}/.pip-cache
     pip install empathi==1.0.6
     """

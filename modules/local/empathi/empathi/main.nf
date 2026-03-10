@@ -10,6 +10,8 @@ process EMPATHI_EMPATHI {
 
     output:
     tuple val(meta), path("${meta.id}.empathi.csv.gz")  , emit: csv_gz
+    path(".command.log")                                , emit: log
+    path(".command.sh")                                 , emit: script
 
     script:
     """

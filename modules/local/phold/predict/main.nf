@@ -5,23 +5,27 @@ process PHOLD_PREDICT {
     conda "${moduleDir}/environment.yml"
 
     input:
-    tuple val(meta) , path(gbk)
+    tuple val(meta) , path(faa_gz)
     path(db)
 
     output:
     tuple val(meta), path("${meta.id}_phold_predict")   , emit: predict
+    path(".command.log")                                , emit: log
+    path(".command.sh")                                 , emit: script
 
     script:
     """
-    gunzip -f ${gbk}
-    # run phold on all fasta files
-    phold predict \\
-        --input ${gbk.getBaseName()} \\
+    ### Decompress
+    gunzip -c ${faa_gz} > ${meta.id}.faa
+
+    ### Run phold predict
+    phold proteins-predict \\
+        --input ${meta.id}.faa \\
         --threads ${task.cpus} \\
         --database ${db} \\
-        --output ${meta.id}_phold_predict \\
-        --hyps
+        --output ${meta.id}_phold_predict
     
-    rm -rf ${gbk.getBaseName()}
+    ### Cleanup
+    rm -rf ${meta.id}.faa
     """
 }

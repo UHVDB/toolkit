@@ -4,6 +4,7 @@ process READ_DOWNLOAD {
     container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/e2/e2bc1e94834d132c6d67b966efbd722e240ffc802187944e739f761a94124ed9/data"
     // Singularity: https://wave.seqera.io/view/builds/bd-e9a85263ce475576_1?_gl=1*zvfk8*_gcl_au*NjY1ODA2Mjk0LjE3NjM0ODUwMTIuMTU1NzczMTA4LjE3NjYxNzI5NzguMTc2NjE3Mjk3OA..
     // xsra binary created via: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh; cargo install xsra
+    storeDir "${params.output_dir}/${params.new_release_id}_outputs/preprocess/${meta.id}"
 
     input:
     tuple val(meta) , val(acc)
@@ -12,6 +13,8 @@ process READ_DOWNLOAD {
     output:
     tuple val(meta), path("${meta.id}.spring*") , emit: spring
     tuple val(meta), path("read*")              , emit: pe_count
+    path(".command.log")                        , emit: log
+    path(".command.sh")                         , emit: script
 
     script:
     """

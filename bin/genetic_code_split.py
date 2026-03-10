@@ -24,7 +24,7 @@ def parse_args(args=None):
 def main(args=None):
     args = parse_args(args)
 
-    df = pl.read_csv(args.input, separator="\t")
+    df = pl.read_csv(args.input, separator="\t", null_values=['NA'])
 
     for g_code in df["genetic_code"].unique().to_list():
         df_code = df.filter(pl.col("genetic_code") == g_code)

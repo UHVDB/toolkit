@@ -9,6 +9,8 @@ process DIAMOND_BLASTPSELF {
 
     output:
     tuple val(meta), path("${meta.id}.diamond_blastp.tsv.gz")   , emit: tsv_gz
+    path(".command.log")                                        , emit: log
+    path(".command.sh")                                         , emit: script
 
     script:
     """

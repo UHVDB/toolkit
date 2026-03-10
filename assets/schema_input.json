@@ -14,6 +14,10 @@
                 "unique": true,
                 "errorMessage": "Identifier used to name samples."
             },
+            "source_db": {
+                "meta": ["source_db"],
+                "errorMessage": "The source database for the sample."
+            },
             "project": {
                 "type": "string",
                 "pattern": "^\\S+$",
@@ -60,6 +64,6 @@
                 "errorMessage": "Virus fasta (FNA) files cannot contain spaces and must have extension 'fasta', 'fa', or 'fna' all optionally gzipped."
             }
         },
-        "required": ["sample", "project", "group"]
+        "required": ["sample", "group"]
     }
 }

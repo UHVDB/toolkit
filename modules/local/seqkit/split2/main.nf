@@ -9,16 +9,20 @@ process SEQKIT_SPLIT2 {
     val(chunk_size)
 
     output:
-    tuple val(meta), path("split_fastas/*") , emit: fastas_gz
+    tuple val(meta), path("split_fastas/*")     , emit: fastas_gz, optional: true
+    path(".command.log")                        , emit: log
+    path(".command.sh")                         , emit: script
 
     script:
     """
+    ### Split sequences
     seqkit \\
         split2 \\
             ${fasta} \\
             --threads ${task.cpus} \\
             --by-size ${chunk_size} \\
             --out-dir split_fastas \\
-            --extension '.gz'
+            --extension '.gz' \\
+            -o ${meta.id}
     """
 }

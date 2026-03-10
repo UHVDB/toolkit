@@ -8,76 +8,106 @@ include { SEQKIT_SPLIT2                     } from '../../../modules/local/seqki
 include { SPACEREXTRACTOR_CREATETARGETDB    } from '../../../modules/local/spacerextractor/createtargetdb'
 include { SPACEREXTRACTOR_MAPTOTARGET       } from '../../../modules/local/spacerextractor/maptotarget'
 include { UHVDB_CATHEADER                   } from '../../../modules/local/uhvdb/catheader'
+include { SEQKIT_GREP                       } from '../../../modules/local/seqkit/grep'
 
 workflow CRISPRHOST {
 
     take:
-    hq_virus_fna_gz // channel: [ [ meta ], fna.gz ]
+    fna_gz // channel: [ [ meta ], fna.gz ]
 
     main:
 
-    // Prepare spacer fasta file
-    ch_spacer_fasta = channel.fromPath(params.spacer_fasta)
-        .map { fasta -> [ [ id: 'spacers' ], fasta ] }
-
     //-------------------------------------------
-    // MODULE: SEQKIT_SPLIT2
+    // MODULE: SEQKIT_SPLIT
     // inputs:
-    // - spacers.fna.gz
+    // - [ [ meta ], virus.fna.gz ]
     // outputs:
-    // - [ spacers.part_*.fna.gz... ]
+    // - [ [ meta ], [ virus.part_*.fna.gz ... ] ]
     // steps:
-    // - split spacer fasta into chunks of size params.spacer_chunk_size (script)
+    // - Split sequences (script)
     //--------------------------------------------
     SEQKIT_SPLIT2(
-        ch_spacer_fasta,
-        params.spacer_chunk_size
+        fna_gz,
+        params.crisprhost_split_size
     )
     ch_split_fna_gz = SEQKIT_SPLIT2.out.fastas_gz
         .map { _meta, fna_gzs -> fna_gzs }
         .flatten()
         .map { fna_gz ->
-            [ [ id: fna_gz.getBaseName() ], fna_gz ]
+            [ [ id: fna_gz.getBaseName().replace(".fna", "") ], fna_gz ]
         }
 
     //-------------------------------------------
     // MODULE: SPACEREXTRACTOR_CREATETARGETDB
     // inputs:
-    // - [ [ meta ], hq_virus.fna.gz ]
+    // - [ [ meta ], virus.part_*.fna.gz ]
     // outputs:
     // - [ [ meta ], target_db/ ]
     // steps:
-    // - uncompress fasta (script)
-    // - create spacerextractor target db (script)
+    // - Decompress (script)
+    // - Create DB (script)
+    // - Cleanup (script)
     //--------------------------------------------
     SPACEREXTRACTOR_CREATETARGETDB(
-        hq_virus_fna_gz
+        ch_split_fna_gz
     )
 
-    // //-------------------------------------------
-    // // MODULE: SPACEREXTRACTOR_MAPTOTARGET
-    // // inputs:
-    // // - hq_virus.part_*.fna.gz
-    // // - [ [ meta ], target_db/ ]
-    // // outputs:
-    // // - [ [ meta ], ${meta.id}.spacerextractor_map.tsv.gz ]
-    // // steps:
-    // // - SE_map_get_hits.py map_to_target (script)
-    // // - compress output (script)
-    // // - cleanup (script)
-    // //--------------------------------------------
+    //-------------------------------------------
+    // MODULE: SPACEREXTRACTOR_MAPTOTARGET
+    // inputs:
+    // - [ [ neta ], virus.part_*.fna.gz ]
+    // - [ [ meta ], target_db/ ]
+    // outputs:
+    // - [ [ meta ], *.spacerextractor.tsv.gz ]
+    // - [ [ meta ], *.crisprhost.tsv.gz ]
+    // steps:
+    // - Map to target (script)
+    // - Filter and get taxonomy (script)
+    // - Compress (script)
+    // - Cleanup (script)
+    //--------------------------------------------
+    ch_spacer_fasta = channel.fromPath(params.spacer_fasta)
+        .map { fasta -> [ [ id: 'spacers' ], fasta ] }
     SPACEREXTRACTOR_MAPTOTARGET(
-        ch_split_fna_gz,
-        SPACEREXTRACTOR_CREATETARGETDB.out.db.collect()
+        ch_spacer_fasta.collect(),
+        SPACEREXTRACTOR_CREATETARGETDB.out.db
     )
 
-    ch_catheader_input = SPACEREXTRACTOR_MAPTOTARGET.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id:'crisprhost' ], tsv_gz, 1, 'tsv' ] }
+    //-------------------------------------------
+    // MODULE: UHVDB_CATHEADER
+    // inputs:
+    // - [ [ meta ], [ *.crisprhost.tsv.gz ... ] ]
+    // outputs:
+    // - [ [ meta ], uhvdb_classify.tsv.gz ]
+    // steps:
+    // - Combine files (script)
+    //--------------------------------------------
+    ch_catheader_input = SPACEREXTRACTOR_MAPTOTARGET.out.se_tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id:'spacerextractor' ], tsv_gz, 1, 'tsv.gz' ] }
+        .mix(SPACEREXTRACTOR_MAPTOTARGET.out.crisprhost_tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id:'crisprhost' ], tsv_gz, 1, 'tsv.gz' ] })
     UHVDB_CATHEADER(
         ch_catheader_input,
-        "${params.output_dir}/annotate/crisprhost"
+        "${params.output_dir}/${params.new_release_id}/uhvdb/crisprhost/"
+    )
+
+    //-------------------------------------------
+    // MODULE: SEQKIT_GREP
+    // inputs:
+    // - [ [ meta ], uhvdb_classify.tsv.gz, virus.fna.gz ]
+    // - boolean: false (whether to invert-match)
+    // outputs:
+    // - [ [ meta ], virus_crisprhost.fna.gz ]
+    // steps:
+    // - Extract patterns (script)
+    // - Grep sequences (script)
+    // - Cleanup (script)
+    //--------------------------------------------
+    SEQKIT_GREP(
+        UHVDB_CATHEADER.out.combined.combine(fna_gz.map { _meta, fna_gz -> fna_gz }),
+        true
     )
 
     emit:
-    crisprhost_tsv_gz = UHVDB_CATHEADER.out.combined
+    tsv_gz = UHVDB_CATHEADER.out.combined.filter { meta, tsv_gz -> meta.id == 'crisprhost' }
+    fna_gz = SEQKIT_GREP.out.fna_gz
 }
 

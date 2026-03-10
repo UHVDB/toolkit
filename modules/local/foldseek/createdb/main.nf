@@ -11,20 +11,22 @@ process FOLDSEEK_CREATEDB {
     output:
     path("viral_ref_db*")   , emit: db
     path("weights")         , emit: weights
+    path(".command.log")    , emit: log
+    path(".command.sh")     , emit: script
 
     script:
     """
-    # create foldseek database
+    ### Create foldseek db
     foldseek createdb \\
         ${tar_gz} \\
         viral_ref_db \\
         --threads ${task.cpus}
 
-    # remove downloaded files to save space
-    rm -rf *.tar.gz
-
-    # download prostt5 weights
+    ### Download weights
     foldseek databases ProstT5 weights tmp
+
+    ### Cleanup
+    rm -rf *.tar.gz
     rm -rf tmp
     """
 }

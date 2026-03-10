@@ -9,10 +9,12 @@ process PHIST_BUILD {
 
     output:
     tuple val(meta) , path("virus.kdb") , emit: kdb
+    path(".command.log")                , emit: log
+    path(".command.sh")                 , emit: script
 
     script:
     """
-    # build kmer-db from virus fasta
+    ### Build kmer-db
     echo "${fna}" > input.list
 
     kmer-db build \\

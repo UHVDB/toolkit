@@ -1,7 +1,8 @@
 process COVERM_CONTIG {
     tag "${meta.id}"
     label 'process_high'
-    container ""
+    container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/22/2206e95daa31b0ebb953967a6addc7c21eb740f3ea5da4d3651c0161d99195a5/data"
+    // Singularity: https://wave.seqera.io/view/builds/bd-9c711c96ce59e29a_1?_gl=1*mvshhs*_gcl_au*MTI1MzgxOTA5MC4xNzY4MjM1MzM1
 
     input:
     tuple val(meta) , path(spring), path(tsv_gz)

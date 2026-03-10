@@ -6,13 +6,15 @@ process DEFENSEFINDER_UPDATE {
 
     output:
     path("defensefinder_db/")   , emit: db
+    path(".command.log")        , emit: log
+    path(".command.sh")         , emit: script
 
     script:
     """
-    # download defense-finder models
+    ### Download
     defense-finder update --models-dir defensefinder_db
 
-    # download CasFinder 3.1.0 models (compatible)
+    ### Fix download (compatible)
     cd defensefinder_db
     rm -rf CasFinder
     wget https://github.com/macsy-models/CasFinder/archive/refs/tags/3.1.0.tar.gz

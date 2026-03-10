@@ -1,8 +1,9 @@
 process MEGAHIT {
     tag "${meta.id}"
-    label 'process_super_high'
+    label 'process_high'
     container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/59/598ce470de069c60c8f0abeac848ff2f9faf2f4b4a3f83f42ff17136abc2d0e4/data"
     // Singularity: https://wave.seqera.io/view/builds/bd-1d9be53c041f466d_1?_gl=1*hw8qg5*_gcl_au*NjY1ODA2Mjk0LjE3NjM0ODUwMTIuMTQxNjI4MTE1Ny4xNzY2NTMzMzE5LjE3NjY1MzMzMTk.
+    storeDir "${params.output_dir}/${params.new_release_id}_outputs/assemble/${meta.id}"
 
     input:
     tuple val(meta), path(spring)
@@ -10,6 +11,8 @@ process MEGAHIT {
     output:
     tuple val(meta), path("${meta.id}.contigs.fna.gz")  , emit: fna_gz
     tuple val(meta), path("${meta.id}.megahit.log.gz")  , emit: log_gz
+    path(".command.log")                                , emit: log
+    path(".command.sh")                                 , emit: script
 
     script:
     def spring_out      = meta.single_end ? "${meta.id}.fastq.gz" : "${meta.id}_R1.fastq.gz ${meta.id}_R2.fastq.gz"
@@ -34,7 +37,7 @@ process MEGAHIT {
     seqkit \\
         seq \\
         megahit_out/${meta.id}.contigs.fa \\
-        --min-len ${params.assemble_min_length} \\
+        --min-len 2000 \\
         --threads ${task.cpus} \\
     | seqkit replace -p "^" -r "${meta.id}_" --out-file ${meta.id}.contigs.fna.gz
 

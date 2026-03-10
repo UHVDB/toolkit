@@ -3,6 +3,7 @@ process UHVDB_TAXASPLIT {
     label 'process_medium'
     container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/05/052a2a9822f7f61d1130ead55fc072b6502fbe287a929e3dcb7153fc9e7b69eb/data"
     // Singularity: https://wave.seqera.io/view/builds/bd-416fa8571eb967e5_1?_gl=1*1rfsze2*_gcl_au*NTUzODYxMTI2LjE3Njc2NTE5OTY.
+    storeDir "${params.output_dir}/${params.new_release_id}_outputs/taxasplit/"
 
     input:
     tuple val(meta) , path(fna_gz)

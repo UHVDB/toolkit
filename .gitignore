@@ -11,3 +11,5 @@ dbs/
 .conda-cache/
 .apptainer-cache/
 databases/*
+*/zenodo/*
+assets/test_datasets/fnas/uhgv_hq_plus_10k.fna.gz

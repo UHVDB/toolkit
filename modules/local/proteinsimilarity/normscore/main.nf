@@ -9,6 +9,8 @@ process PROTEINSIMILARITY_NORMSCORE {
 
     output:
     tuple val(meta) , path("${meta.id}.normscore.tsv.gz")   , emit: tsv_gz
+    path(".command.log")                                    , emit: log
+    path(".command.sh")                                     , emit: script
 
     script:
     """
@@ -16,7 +18,7 @@ process PROTEINSIMILARITY_NORMSCORE {
     norm_score.py \\
         --input ${ref_tsv_gz} \\
         --self_score ${self_tsv_gz} \\
-        --min_score ${params.min_normscore} \\
+        --min_score 5.5 \\
         --output ${meta.id}.normscore.tsv
 
     ### Compress

@@ -7,6 +7,8 @@ process DEACON_INDEXFETCH {
 
     output:
     path("panhuman-1.k31w15.idx")   , emit: index
+    path(".command.log")            , emit: log
+    path(".command.sh")             , emit: script
 
     script:
     """

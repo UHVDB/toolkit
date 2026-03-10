@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import gzip
 
 from Bio import SeqIO
 import pandas as pd
@@ -43,21 +44,24 @@ def main(args=None):
 
     # identify proteins without UniProt hits
     nohit_set = set(df[
-        (df['Type'] == 'cds') &
         (
-            df['DbXrefs'].isnull() | (
-                (~df['DbXrefs'].astype(str).str.contains('UniParc')) &
-                (~df['DbXrefs'].astype(str).str.contains('UniRef')) &
-                (~df['DbXrefs'].astype(str).str.contains('UserProtein'))
+            (df['Accession'].isnull()) | 
+            (
+                (~df['Accession'].astype(str).str.contains('UniParc')) &
+                (~df['Accession'].astype(str).str.contains('UniRef')) &
+                (~df['Accession'].astype(str).str.contains('UserProtein'))
             )
         )
     ][args.name_column])
+
+    print(f"Identified {len(nohit_set)} no-hit proteins.")
     
     # extract no-hit proteins from FAA
     nohit_records = []
-    for record in SeqIO.parse(args.input_faa, 'fasta'):
-        if record.id in nohit_set:
-            nohit_records.append(record)
+    with gzip.open(args.input_faa, 'rt') as f:
+        for record in SeqIO.parse(f, 'fasta'):
+            if record.id in nohit_set:
+                nohit_records.append(record)
 
     SeqIO.write(nohit_records, args.output, 'fasta')
 if __name__ == "__main__":

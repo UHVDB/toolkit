@@ -9,10 +9,12 @@ process DGRSCAN {
 
     output:
     tuple val(meta) , path("${meta.id}.dgrscan.txt.gz") , emit: txt_gz
+    path(".command.log")                                , emit: log
+    path(".command.sh")                                 , emit: script
 
     script:
     """
-    ### Decompress input fasta
+    ### Decompress
     gunzip -f -c ${fna} > ${fna.getBaseName()}
 
     ### Run DGRscan
@@ -22,7 +24,7 @@ process DGRSCAN {
 
     touch ${meta.id}.dgrscan.txt
 
-    ### Compress output
+    ### Compress
     gzip -f ${meta.id}.dgrscan.txt
 
     ### Cleanup

@@ -9,6 +9,8 @@ process DIAMOND_MAKEDB {
 
     output:
     tuple val(meta) , path("${meta.id}.dmnd")   , emit: dmnd
+    path(".command.log")                        , emit: log
+    path(".command.sh")                         , emit: script
 
     script:
     """

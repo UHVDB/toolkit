@@ -30,7 +30,7 @@ def main(args=None):
     args = parse_args(args)
 
     df = (
-        pl.read_csv(args.input, separator="\t")
+        pl.read_csv(args.input, separator="\t", null_values=['NA'])
             .with_columns([
                 pl.col('taxonomy').str.replace_all("Viruses;;;;;;Anelloviridae", 'Viruses;Monodnavira;Shotukuvirae;Commensaviricota;Cardeaviricetes;Sanitavirales;Anelloviridae'),
             ])

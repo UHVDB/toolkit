@@ -11,18 +11,19 @@ process ICTV_VMRTOFASTA {
     tuple val(meta), path("${meta.id}.fna.gz")                      , emit: fna_gz
     tuple val(meta), path("processed_accessions_b.fa_names.tsv")    , emit: processed_tsv
     tuple val(meta), path("bad_accessions_b.tsv")                   , emit: bad_tsv
-    path("versions.yml")                                            , emit: versions
+    path(".command.log")                                            , emit: log
+    path(".command.sh")                                             , emit: script
 
     script:
     """
-    # process VMR accessions
+    ### Process VMR
     VMR_to_fasta.py \\
         -mode VMR \\
         -ea B \\
         -VMR_file_name ${xlsx} \\
         -v
 
-    # download FNA file using current vmr
+    ### Download VMR FNA
     VMR_to_fasta.py \\
         -email ${params.email} \\
         -mode fasta \\
@@ -32,18 +33,11 @@ process ICTV_VMRTOFASTA {
         -v
 
     cat ictv_fastas/*/*.fa > ${meta.id}.fna
+
+    ### Compress
     gzip ${meta.id}.fna
 
+    ### Cleanup
     rm -rf fixed_vmr_b.tsv process_accessions_b.tsv ictv_fastas/
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        python: \$( python --version | sed -e "s/Python //g" )
-        biopython: \$(python -c "import Bio; print(Bio.__version__)")
-        pandas: \$(python -c "import pandas; print(pandas.__version__)")
-        numpy: \$(python -c "import numpy; print(numpy.__version__)")
-        openpyxl: \$(python -c "import openpyxl; print(openpyxl.__version__)")
-        psutil: \$(python -c "import psutil; print(psutil.__version__)")
-    END_VERSIONS
     """
 }

@@ -10,10 +10,12 @@ process FOLDSEEK_CREATEDBPROSTT5 {
 
     output:
     tuple val(meta), path("${meta.id}_3di_db*") , emit: db
+    path(".command.log")                        , emit: log
+    path(".command.sh")                         , emit: script
 
     script:
     """
-    # convert nohit proteins to foldseek 3di database
+    ### Convert AA to 3Di
     foldseek createdb \\
         ${faa} \\
         ${meta.id}_3di_db \\

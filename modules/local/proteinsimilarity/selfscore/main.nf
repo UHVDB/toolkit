@@ -9,6 +9,8 @@ process PROTEINSIMILARITY_SELFSCORE {
 
     output:
     tuple val(meta), path("${meta.id}.selfscore.tsv.gz")    , emit: tsv_gz
+    path(".command.log")                                    , emit: log
+    path(".command.sh")                                     , emit: script
 
     script:
     """

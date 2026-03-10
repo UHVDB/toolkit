@@ -29,22 +29,47 @@ def validateInputSamplesheet (input) {
     }
 }
 
-// MODULES
-include { DEACON_INDEXFETCH         } from './modules/local/deacon/indexfetch'
-include { SEQKIT_CONCAT             } from './modules/local/seqkit/concat'
-include { UHVDB_CATHEADER           } from './modules/local/uhvdb/catheader'
+def rmNonMultiFastAs(ch_fastas, min) {
+    def ch_nonempty_fastas = ch_fastas
+        .filter { _meta, fasta ->
+            try {
+                file(fasta).countFasta( limit: min ) > (min - 1)
+            } catch (java.util.zip.ZipException e) {
+                log.debug "[rmNonMultiFastAs]: ${fasta} is not in GZIP format, this is likely because it was cleaned with --remove_intermediate_files"
+                true
+            } catch (EOFException) {
+                log.debug "[rmNonMultiFastAs]: ${fasta} has an EOFException, this is likely an empty gzipped file."
+                false
+            }
+        }
+    return ch_nonempty_fastas
+}
 
+// MODULES
+include { UHVDB_TAXASPLIT           } from './modules/local/uhvdb/taxasplit'
 
 // SUBWORKFLOWS
-include { BAKTA                     } from './subworkflows/local/bakta'
-include { UNIQUE                    } from './subworkflows/local/unique'
+include { AAICLUSTER                } from './subworkflows/local/aaicluster'
+include { ASSEMBLE                  } from './subworkflows/local/assemble'
+include { ANICLUSTER                } from './subworkflows/local/anicluster'
+include { CLASSIFY                  } from './subworkflows/local/classify'
+include { CRISPRHOST                } from './subworkflows/local/crisprhost'
+include { DATABASES                 } from './subworkflows/local/databases'
+include { FUNCTION                  } from './subworkflows/local/function'
+include { HCFILTER                  } from './subworkflows/local/hcfilter'
+include { HQFILTER                  } from './subworkflows/local/hqfilter'
+include { IPHOP                     } from './subworkflows/local/iphop'
+include { LIFESTYLE                 } from './subworkflows/local/lifestyle'
 include { PREPROCESS                } from './subworkflows/local/preprocess'
+include { PHIST                     } from './subworkflows/local/phist'
+include { TAXONOMY                  } from './subworkflows/local/taxonomy'
+include { UPDATE                    } from './subworkflows/local/update'
 
 // WORKFLOWS
 // include { ANALYZE                   } from './workflows/local/analyze'
-include { ANNOTATE                  } from './workflows/local/annotate'
-include { COMPARE                   } from './workflows/local/compare'
-include { MINE                      } from './workflows/local/mine'
+// include { ANNOTATE                  } from './workflows/local/annotate'
+// include { COMPARE                   } from './workflows/local/compare'
+// include { MINE                      } from './workflows/local/mine'
 // include { UPDATE                    } from './workflows/local/update'
 
 //-------------------------------------------
@@ -146,19 +171,19 @@ workflow {
     ch_input_fastqs = ch_input_fastqs_prefilt.filter { _meta, fastqs -> fastqs[0] }
     ch_input_sras   = ch_input_sra_prefilt.filter { _meta, sra -> sra[0] }
 
+    //-------------------------------------------
+    // SUBWORKFLOW: PREPROCESS
+    // inputs:
+    // - [ [ meta ], [ read1.fastq.gz, read1.fastq.gz? ] ]
+    // - [ [ meta ], acc ]
+    // outputs:
+    // - [ [ meta ], spring ]
+    // steps:
+    // - DEACON_INDEXFETCH (module)
+    // - READ_DOWNLOAD (module)
+    // - READ_PREPROCESS (module)
+    //-------------------------------------------
     if ( params.run_assemble || params.run_referenceanalyze ) {
-        //-------------------------------------------
-        // SUBWORKFLOW: PREPROCESS
-        // inputs:
-        // - [ [ meta ], [ read1.fastq.gz, read1.fastq.gz? ] ]
-        // - [ [ meta ], acc ]
-        // outputs:
-        // - [ [ meta ], spring ]
-        // steps:
-        // - DEACON_INDEXFETCH (module)
-        // - READ_DOWNLOAD (module)
-        // - READ_PREPROCESS (module)
-        //-------------------------------------------
         PREPROCESS(
             ch_input_fastqs,
             ch_input_sras
@@ -181,220 +206,466 @@ workflow {
         )
     }
 
-    //-------------------------------------
-    // Load virus genome inputs (--virus_fnas)
-    //-------------------------------------
-    if ( params.virus_fnas ) {
-        ch_input_virus_fastas = ch_input_virus_fastas.mix(
-            channel.fromPath(params.virus_fnas)
-            .map { virus_fasta ->
-                def meta    = [:]
-                meta.id     = virus_fasta.getBaseName()
-                meta.group  = virus_fasta.getBaseName()
-                return [ meta, virus_fasta ]
-            }
-        )
-    }
-
     //-------------------------------------------
-    // WORKFLOW: MINE
+    // SUBWORKFLOW: ASSEMBLE
     // inputs:
     // - [ [ meta ], reads.spring ]
-    // - [ [ meta ], assembly.fna.gz ]
-    // - [ [ meta ], virus.fna.gz ]
     // outputs:
+    // - [ [ meta ], grouped.spring ]
     // - [ [ meta ], assembly.fna.gz ]
-    // - [ [ meta ], virus.fna.gz ]
-    // - [ [ meta ], virus_summary.tsv.gz ]
-    // - [ [ meta ], hq_virus.fna.gz ]
-    // - [ [ meta ], filter_summary.tsv.gz ]
     // steps:
-    // - ASSEMBLE (subworkflow)
-    // - CLASSIFY (subworkflow)
-    // - FILTER (subworkflow)
+    // - SPRING_CAT (module)
+    // - MEGAHIT (module)
     //--------------------------------------------
-    // TODO: Finish MINE workflow implementation
-    if (params.run_assemble || params.run_classify || params.run_filter ) {
-        MINE(
-            ch_preprocessed_spring,
-            ch_input_fastas,
-            ch_input_virus_fastas
-        )
-    }
-
     if ( params.run_assemble ) {
-        // ch_assembly_fna_gz       = MINE.out.assembly_fna_gz.mix(ch_input_fastas)
-    } else {
-        ch_assembly_fna_gz       = ch_input_fastas
-    }
-
-    if ( params.run_classify ) {
-        // ch_virus_fna_gz          = MINE.out.virus_fna_gz.map { meta, fna_gz -> [ meta + [ hq: false ], fna_gz ] }
-        // ch_virus_split_fna_gz    = MINE.out.virus_split_fna_gz
-        // ch_virus_summary_tsv_gz  = MINE.out.summary_tsv_gz
-    }  else {
-        //-------------------------------------------
-        // SUBWORKFLOW: UNIQUE
-        // inputs:
-        // - [ [ meta ], virus.fna.gz ]
-        // outputs:
-        // - [ [ meta ], unique_virus.fna.gz ]
-        // - [ [ meta ], unique_virus_split.part_*.fna.gz ] 
-        // - [ [ meta ], unique_virus_summary.tsv.gz ]
-        // steps:
-        // - SEQHASHER (module)
-        // - UHVDB_UNIQUEHASH (module)
-        // - UHVDB_UNIQUESEQ (module)
-        // - SEQKIT_CONCAT (module)
-        //-------------------------------------------
-        UNIQUE(
-            ch_input_virus_fastas
+        ASSEMBLE(
+            ch_preprocessed_spring
         )
-        ch_unique_virus_fna_gz    = UNIQUE.out.virus_fna_gz
-        ch_split_virus_fna_gz     = UNIQUE.out.virus_split_fna_gz
-        ch_virus_summary_tsv_gz   = UNIQUE.out.virus_summary_tsv_gz
-    }
-
-    if ( params.run_filter ) {
-        // ch_unique_virus_fna_gz   = MINE.out.unique_virus_fna_gz
-        // ch_virus_split_fna_gz    = MINE.out.unique_virus_split_fna_gz
-        // ch_virus_summary_tsv_gz  = MINE.out.summary_tsv_gz
+        ch_assembly_fna_gz      = ASSEMBLE.out.assembly_fna_gz.map { meta, fna_gz -> meta.source_db = null; [ meta, fna_gz ] }
+        ch_preprocessed_spring  = ch_preprocessed_spring.mix(ASSEMBLE.out.reads_spring)
+    } else {
+        ch_assembly_fna_gz = channel.empty()
     }
 
     //-------------------------------------------
-    // WORKFLOW: ANNOTATE
-    // inputs:
-    // - [ [ meta ], unique_virus.fna.gz ]
-    // - [ [ meta ], unique_virus_split.part_*.fna.gz ] 
-    // - [ [ meta ], unique_virus_summary.tsv.gz ]
+    // SUBWORKFLOW: DATABASES
     // outputs:
-    // - [ [ meta ], bacphlip.tsv.gz ]
-    // - [ [ meta ], bakta.gbk.gz ]
-    // - [ [ meta ], bakta.tsv.gz ]
-    // - [ [ meta ], crisprhost.tsv.gz ]
-    // - [ [ meta ], defensefinder.tsv.gz ]
-    // - [ [ meta ], dgrscan.tsv.gz ]
-    // - [ [ meta ], empathi.csv.gz ]
-    // - [ [ meta ], foldseek.tsv.gz ]
-    // - [ [ meta ], interproscan.tsv.gz ]
-    // - [ [ meta ], padloc.csv.gz ]
-    // - [ [ meta ], pharokka.tsv.gz ]
-    // - [ [ meta ], phold.tsv.gz ]
-    // - [ [ meta ], phisthost.tsv.gz ]
-    // - [ [ meta ], phynteny.tsv.gz ]
-    // - [ [ meta ], pseudofinder.gff.gz ]
-    // - [ [ meta ], tophit.tsv.gz ]
+    // - [ genomad_db ]
+    // - [ checkv_db ]
+    // steps:
+    // - GENOMAD_DOWNLOADDATABASE (module)
+    // - CHECKV_DOWNLOAD (module)
+    //-------------------------------------------
+    DATABASES()
+
+    //-------------------------------------------
+    // SUBWORKFLOW: CLASSIFY
+    // inputs:
+    // - [ [ meta ], assembly.fna.gz ]
+    // outputs:
+    // - [ [ meta ], virus_mq_plus.fna.gz ]
+    // - [ [ meta ], uhvdb_virus_classify.tsv.gz ]
+    // - [ [ meta ], uhvdb_completeness.tsv.gz ]
+    // steps:
+    // - GENOMAD_DOWNLOADDATABASE (module)
+    // - ATB_GENOMAD (module)
+    // - ENA_GENOMAD (module)
+    // - NCBI_GENOMAD (module)
+    // - LOGAN_GENOMAD (module)
+    // - SPIRE_GENOMAD (module)
+    // - LOCAL_SEQKIT_SPLIT2 (module)
+    // - LOCAL_GENOMAD (module)
+    // - CHECKV (module)
+    // - VIRALVERIFY (module)
+    // - UHVDB_VIRUSCLASSIFY (module)
+    // - UHVDB_CATHEADER (module)
+    // - UHVDB_CATNOHEADER (module)
+    //--------------------------------------------
+    if ( params.run_classify ) {
+        CLASSIFY(
+            ch_input_fastas.mix(ch_assembly_fna_gz),
+            DATABASES.out.genomad_db,
+            DATABASES.out.checkv_db
+        )
+        ch_mq_plus_viruses_fna_gz   = CLASSIFY.out.mq_plus_viruses_fna_gz
+        ch_classify_tsv_gz          = CLASSIFY.out.classify_tsv_gz
+    } else {
+        ch_mq_plus_viruses_fna_gz   = ch_input_fastas.mix(ch_assembly_fna_gz)
+        ch_classify_tsv_gz          = channel.empty()
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: HQFILTER
+    // inputs:
+    // - [ [ meta ], virus.fna.gz ]
+    // - [ [ meta ], uhvdb_classify.tsv.gz ]
+    // - [ [ meta ], uhvdb_completeness.tsv.gz ]
+    // - [ checkv_db ]
+    // outputs:
+    // - [ [ meta ], hq_virus.part_*.fna.gz ]
+    // steps:
+    // - UHVDB_COMPLETEGENOMES (module)
+    // - TRTRIMMER_COMPLETE (module)
+    // - VCLUST_ALL2ALL (module)
+    // - CHECKV_VCLUST (module)
+    // - CHECKV_UPDATE (module)
+    // - CHECKV_ENDTOEND2 (module)
+    // - UHVDB_HQFILTER (module)
+    // - TRTRIMMER_HQ (module)
+    // - SEQHASHER (module)
+    // - UHVDB_UNIQUE (module)
+    // - UNIQUE_DEREP (subworkflow)
+    // - GENOMOVAR_DEREP (subworkflow)
+    // - UHVDB_UNCERTAIN (module)
+    // - GENOMAD_DOWNLOADHALLMARKS (module)
+    // - GENOMAD_HMMSEARCH (module)
+    // - UHVDB_HCFILTER (module)
+    // - UHVDB_CATHEADER (module)
+    // - UHVDB_CATNOHEADER (module)
+    //--------------------------------------------
+    if ( params.run_hqfilter ) {
+        HQFILTER(
+            ch_mq_plus_viruses_fna_gz,
+            ch_classify_tsv_gz,
+            DATABASES.out.checkv_db
+        )
+        ch_hq_virus_fna_gz = HQFILTER.out.hq_viruses_fna_gz
+        ch_hqfilter_tsv_gz = HQFILTER.out.hqfilter_tsv_gz
+    } else {
+        ch_hq_virus_fna_gz = ch_mq_plus_viruses_fna_gz
+        ch_hqfilter_tsv_gz = channel.empty()
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: HCFILTER
+    // inputs:
+    // - [ [ meta ], hq_virus.part_*.fna.gz ]
+    // - [ [ meta ], uhvdb_classify.tsv.gz ]
+    // outputs:
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
+    // - [ [ meta ], seqhasher.tsv.gz ]
+    // - [ [ meta ], unique.tsv.gz ]
+    // - [ [ meta ], genomovar.tsv.gz ]
+    // steps:
+    // - TRTRIMMER (module)
+    // - SEQHASHER (module)
+    // - UHVDB_UNIQUE (module)
+    // - UNIQUE_DEREP (subworkflow)
+    // - GENOMOVAR_DEREP (subworkflow)
+    // - UHVDB_UNCERTAIN (module)
+    // - GENOMAD_DOWNLOADHALLMARKS (module)
+    // - GENOMAD_HMMSEARCH (module)
+    // - UHVDB_HCFILTER (module)
+    // - UHVDB_CATHEADER (module)
+    // - UHVDB_CATNOHEADER (module)
+    //--------------------------------------------
+    if ( params.run_hcfilter ) {
+        HCFILTER(
+            ch_hq_virus_fna_gz,
+            ch_classify_tsv_gz
+        )
+        ch_new_hq_hc_virus_fna_gz   = HCFILTER.out.new_fna_gz
+        ch_all_hq_hc_virus_fna_gz   = HCFILTER.out.all_fna_gz
+        ch_hcfilter_tsv_gz          = HCFILTER.out.tsv_gz
+        ch_new_classify_tsv_gz      = HCFILTER.out.classify_tsv_gz
+    } else {
+        ch_new_hq_hc_virus_fna_gz   = ch_hq_virus_fna_gz
+        ch_all_hq_hc_virus_fna_gz   = ch_hq_virus_fna_gz
+        ch_hcfilter_tsv_gz          = channel.empty()
+        ch_new_classify_tsv_gz      = ch_classify_tsv_gz
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: TAXONOMY
+    // inputs:
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
+    // - [ [ meta ], uhvdb_virus_classify.tsv.gz ]
+    // outputs:
     // - [ [ meta ], taxonomy.tsv.gz ]
     // steps:
-    // - CRISPRHOST (subworkflow)
-    // - PHIST (subworkflow)
-    // - TAXONOMY (subworkflow)
-    // - FUNCTION (subworkflow)
-    // - LIFESTYLE (subworkflow)
+    // - SEQKIT_SPLIT (module)
+    // - DIAMOND_BLASTP (module)
+    // - DIAMOND_BLASTPSELF (module)
+    // - PROTEINSIMILARITY_NORMSCORE (module)
+    // - UHVDB_CATHEADER (module)
     //--------------------------------------------
-    // TODO: Test taxonomy
-    // TODO: Add vcontact3
-    if (params.run_crisprhost || params.run_phist || params.run_proteinsimilarity || params.run_function || params.run_lifestyle ) {
-        ANNOTATE(
-            ch_unique_virus_fna_gz,
-            ch_split_virus_fna_gz,
-            ch_virus_summary_tsv_gz
+    if ( params.run_taxonomy ) {
+        TAXONOMY(
+            ch_new_hq_hc_virus_fna_gz,
+            ch_new_classify_tsv_gz,
+            params.vmr_url
         )
+        ch_taxonomy_tsv_gz = TAXONOMY.out.tsv_gz
+    } else 
+    {
+        ch_taxonomy_tsv_gz = channel.empty()
     }
 
     //-------------------------------------------
-    // WORKFLOW: COMPARE
+    // SUBWORKFLOW: PHIST
     // inputs:
-    // - [ [ meta ], virus.unique.fna.gz ]
-    // - params.uhvdb_dir
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
     // outputs:
-    // - [ [ meta ], clusters.tsv.gz ]
-    // - [ [ meta ], dedup_reps.fna.gz ]
-    // - [ [ meta ], genomovar_reps.fna.gz ]
-    // - [ [ meta ], species_reps.fna.gz ]
-    // - [ [ meta ], species_reps.faa.gz ]
-    // - [ [ meta ], species_graph.txt.gz ]
-    // - [ [ meta ], family_graph.txt.gz ]
-    // - [ [ meta ], phylogeny.nwk.gz ]
+    // - [ [ meta ], phist.tsv.gz ]
     // steps:
-    // - ANICLUSTER (subworkflow)
-    // - AAICLUSTER (subworkflow)
-    // - PHYLOGENY (module)
+    // - SEQKIT_SPLIT (module)
+    // - PHIST_BUILD (module)
+    // - PHIST_DATASETS (module)
+    // - UHVDB_CATHEADER (module)
+    // - PHIST_NOHITS (module)
     //--------------------------------------------
-    // TODO: Add anicluster subworkflow
-    // TODO: Add aaicluster subworkflow
-    if (params.run_anicluster || params.run_aaicluster || params.run_phylogeny ) {
-        COMPARE(
-            ch_unique_virus_fna_gz,
-            ch_split_virus_fna_gz,
-            ch_virus_summary_tsv_gz
+    if ( params.run_phist ) {
+        PHIST(
+            ch_new_hq_hc_virus_fna_gz
         )
+        ch_nophist_fna_gz = PHIST.out.fna_gz
+        ch_phist_tsv_gz = PHIST.out.tsv_gz
+    } else {
+        // ch_nophist_fna_gz = ch_new_hq_hc_virus_fna_gz
+        ch_phist_tsv_gz = channel.empty()
     }
 
     //-------------------------------------------
-    // WORKFLOW: UPDATE
+    // SUBWORKFLOW: CRISPRHOST
     // inputs:
-    // - [ [ meta ], hq_virus.fna.gz ]
-    // - [ [ meta ], filter_summary.tsv.gz ]
-    // - params.uhvdb_dir
+    // - [ [ meta ], hq_hc_virus.phist_nohits.fna.gz ]
     // outputs:
-    // - [ [ meta ], clusters.tsv.gz ]
-    // - [ [ meta ], metadata.tsv.gz ]
-    // - [ [ meta ], unique.fna.gz ]
-    // - [ [ meta ], dedup_reps.fna.gz ]
-    // - [ [ meta ], genomovar_reps.fna.gz ]
-    // - [ [ meta ], genomovar_reps.faa.gz ]
-    // - [ [ meta ], species_reps.fna.gz ]
-    // - [ [ meta ], species_reps.faa.gz ]
-    // - [ [ meta ], species_graph.txt.gz ]
-    // - [ [ meta ], family_graph.txt.gz ]
+    // - [ [ meta ], crisprhost.tsv.gz ]
     // steps:
-    // - ANICLUSTER (subworkflow)
-    // - AAICLUSTER (subworkflow)
+    // - SEQKIT_SPLIT (module)
+    // - SPACEREXTRACTOR_CREATETARGETDB (module)
+    // - SPACEREXTRACTOR_MAPTOTARGET (module)
+    // - UHVDB_CATHEADER (module)
     //--------------------------------------------
-    // TODO: Add update workflow
-    // UPDATE(
-    //     ch_hq_virus_fna_gz,
-    //     ch_filter_summary_tsv_gz
-    // )
+    if ( params.run_crisprhost ) {
+        CRISPRHOST(
+            ch_nophist_fna_gz
+        )
+        ch_nocrisprhost_fna_gz = CRISPRHOST.out.fna_gz
+        ch_crisprhost_tsv_gz = CRISPRHOST.out.tsv_gz
+    } else {
+        // ch_nocrisprhost_fna_gz = ch_nophist_fna_gz
+        ch_crisprhost_tsv_gz = channel.empty()
+    }
 
     //-------------------------------------------
-    // WORKFLOW: ANALYZE
+    // SUBWORKFLOW: IPHOP
     // inputs:
-    // - [ [ meta ], reads.spring ]
-    // - [ [ meta ], assembly.fna.gz ]
+    // - [ [ meta ], hq_hc_virus.crispr_nohits.fna.gz ]
+    // outputs:
+    // - [ [ meta ], iphop.tsv.gz ]
+    // steps:
+    // - IPHOP_DOWNLOAD (module)
+    // - SEQKIT_SPLIT (module)
+    // - IPHOP_PREDICT (module)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
+    if ( params.run_iphop ) {
+        IPHOP(
+            ch_nocrisprhost_fna_gz
+        )
+        iphop_genus_tsv_gz = IPHOP.out.genus_tsv_gz
+        iphop_genome_tsv_gz = IPHOP.out.genome_tsv_gz
+    } else {
+        iphop_genus_tsv_gz = channel.empty()
+        iphop_genome_tsv_gz = channel.empty()
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: FUNCTION
+    // inputs:
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
+    // outputs:
+    // - [ [ meta ], uniprot.tsv.gz ]
+    // - [ [ meta ], phrogs.tsv.gz ]
+    // - [ [ meta ], empathi.tsv.gz ]
+    // - [ [ meta ], dgrs.tsv.gz ]
+    // - [ [ meta ], amrfinder.tsv.gz ]
+    // - [ [ meta ], vfdb.tsv.gz ]
+    // - [ [ meta ], defensefinder.tsv.gz ]
+    // steps:
+    // - SEQKIT_SPLIT2 (module)
+    // - PYRODIGAL-GV (module) save FNA for instrain
+    // - UHVDB_PROTEINHASH (module)
+    // - SEQKIT_SPLIT2 (module)
+    // - BAKTA_PROTEINS (module) with --very-sensitive diamond versus UniProt50 DIAMOND
+    // - FOLDSEEK (module) only for proteins without uniprot hit
+    // - INTERPROSCAN (module) only for proteins without uniprot hit
+    // - PHAROKKA (module)
+    // - PHOLD (module) only for proteins without a phrog
+    // - EMPATHI (module)
+    // - DIAMOND_CARD (module)
+    // - DIAMOND_VFDB (module)
+    // - DEFENSEFINDER (module)
+    // - DGRSCAN (module)
+    // - UHVDB_CATHEADER (module)
+    // - UHVDB_CATNOHEADER (module)
+    //--------------------------------------------
+    if ( params.run_function ) {
+        FUNCTION(
+            ch_new_hq_hc_virus_fna_gz,
+            ch_new_classify_tsv_gz
+        )
+        ch_protein2hash_tsv_gz = FUNCTION.out.protein2hash_tsv_gz
+        ch_protein_faa_gz = FUNCTION.out.protein_faa_gz
+        ch_protein_fna_gz = FUNCTION.out.protein_fna_gz
+        // ch_dgrscan_tsv_gz = FUNCTION.out.dgrscan_tsv_gz
+        ch_bakta_tsv_gz = FUNCTION.out.bakta_tsv_gz
+        ch_foldseek_tsv_gz = FUNCTION.out.foldseek_tsv_gz
+        ch_interproscan_tsv_gz = FUNCTION.out.interproscan_tsv_gz
+        ch_card_tsv_gz = FUNCTION.out.card_tsv_gz
+        ch_vfdb_tsv_gz = FUNCTION.out.vfdb_tsv_gz
+        ch_defensefinder_tsv_gz = FUNCTION.out.defensefinder_tsv_gz
+        ch_pharokka_tsv_gz = FUNCTION.out.pharokka_tsv_gz
+        ch_phold_tsv_gz = FUNCTION.out.phold_tsv_gz
+        ch_empathi_csv_gz = FUNCTION.out.empathi_csv_gz
+    } else {
+        ch_protein2hash_tsv_gz = channel.empty()
+        ch_protein_faa_gz = channel.empty()
+        ch_protein_fna_gz = channel.empty()
+        ch_dgrscan_tsv_gz = channel.empty()
+        ch_bakta_tsv_gz = channel.empty()
+        ch_foldseek_tsv_gz = channel.empty()
+        ch_interproscan_tsv_gz = channel.empty()
+        ch_card_tsv_gz = channel.empty()
+        ch_vfdb_tsv_gz = channel.empty()
+        ch_defensefinder_tsv_gz = channel.empty()
+        ch_pharokka_tsv_gz = channel.empty()
+        ch_phold_tsv_gz = channel.empty()
+        ch_empathi_csv_gz = channel.empty()
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: LIFESTYLE
+    // inputs:
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
+    // - [ [ meta ], uhvdb_virus_classify.tsv.gz ]
+    // - [ [ meta ], phrogs.tsv.gz ]
+    // - [ [ meta ], empathi.tsv.gz ]
+    // outputs:
+    // - [ [ meta ], lifestyle.tsv.gz ]
+    // steps:
+    // - SEQKIT_SPLIT (module)
+    // - BACPHLIP (module)
+    // - UHVDB_LIFESTYLE (module) with input from classify (strong integration), phrogs and bacphlip (confident), empathi (unknown)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
+    if ( params.run_lifestyle ) {
+        LIFESTYLE(
+            ch_new_hq_hc_virus_fna_gz,
+            ch_new_classify_tsv_gz,
+            ch_pharokka_tsv_gz,
+            ch_phold_tsv_gz,
+            ch_empathi_csv_gz,
+            ch_protein2hash_tsv_gz
+        )
+        ch_lifestyle_tsv_gz = LIFESTYLE.out.tsv_gz
+    } else {
+        ch_lifestyle_tsv_gz = channel.empty()
+    }
+
+    //-------------------------------------------
+    // MODULE: UHVDB_TAXASPLIT
+    // inputs:
+    // - [ [ meta ], unique_virus.fna.gz ]
     // - [ [ meta ], virus_summary.tsv.gz ]
-    // - params.uhvdb_dir
     // outputs:
-    // - [ [ meta ], profile.tsv.gz ]
-    // - [ [ meta ], ref_activity.tsv.gz ]
-    // - [ [ meta ], assembly_activity.tsv.gz ]
-    // - [ [ meta ], instrain_profile.tsv.gz ]
-    // - [ [ meta ], instrain_compare.tsv.gz ]
+    // - [ [ meta ], unique_virus.taxa*.fna.gz ]
     // steps:
-    // - REFERENCEANALYZE (subworkflow)
-    // - ASSEMBLYANALYZE (subworkflow)
-    //--------------------------------------------
-    // TODO: Add assemblyanalyze subworkflow
-    // ANALYZE(
-    //     ch_preprocessed_fastq_gz,
-    //     ch_uhvdb_dir,
-    //     ch_assembly_fna_gz,
-    //     ch_virus_summary_tsv_gz
-    // )
+    // - Split fasta by taxa (script)
+    // - Cleanup (script)
+    //-------------------------------------------
+    if ( params.run_anicluster || params.run_aaicluster ) {
+        UHVDB_TAXASPLIT(
+            ch_new_hq_hc_virus_fna_gz,
+            ch_new_classify_tsv_gz
+        )
+        ch_taxa_split_fna_gz = rmNonMultiFastAs(
+            UHVDB_TAXASPLIT.out.fna_gzs
+                .map { _meta, fna_gzs -> fna_gzs }
+                .flatten()
+                .map { fna_gz ->
+                    def taxa = fna_gz.getBaseName().toString() =~ /taxa([^\.]+)\.fna/
+                    [ [ id: fna_gz.getBaseName().replace(".fna", ""), taxa: taxa[0][1] ], fna_gz ]
+                },
+                1
+        )
+    } else {
+        // ch_taxa_split_fna_gz = ch_new_hq_hc_virus_fna_gz
+    }
 
     //-------------------------------------------
-    // WORKFLOW: PANGENOME
+    // SUBWORKFLOW: ANICLUSTER
     // inputs:
-    // - [ [ meta ], virus.unique.fna.gz ]
-    // - params.uhvdb_taxid
-    // - params.uhvdb_dir
+    // - [ [ meta ], hq_hc_virus.genomovar_reps.fna.gz ]
+    // - [ [ meta ], uhvdb_virus_classify.tsv.gz ]
     // outputs:
-    // - [ [ meta ], taxid.panmat ]
+    // - [ [ meta ], aniclust.tsv.gz ]
+    // - [ [ meta ], species_reps.fna.gz ]
     // steps:
-    // - PANMAT (subworkflow)
-    // - PPANGGOLIN (subworkflow)
+    // - SEQKIT_SPLIT2 (module)
+    // - VCLUST_NEW2ALL (module)
+    // - MCL (module)
+    // - UHVDB_ANIREPS (module)
     //--------------------------------------------
-    // TODO: Add panmat
-    // TODO: Add ppanggolin
+    if ( params.run_anicluster ) {
+        ANICLUSTER(
+            ch_taxa_split_fna_gz,
+            ch_new_classify_tsv_gz,
+            ch_hqfilter_tsv_gz
+        )
+    }
+
+
+    //-------------------------------------------
+    // SUBWORKFLOW: AAICLUSTER
+    // inputs:
+    // - [ [ meta ], species_reps.fna.gz ]
+    // outputs:
+    // - [ [ meta ], aniclust.tsv.gz ]
+    // - [ [ meta ], species_reps.fna.gz ]
+    // steps:
+    // - SEQKIT_SPLIT (module)
+    // - BACPHLIP (module)
+    // - UHVDB_LIFESTYLE (module)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
+    // if ( params.run_aaicluster ) {
+    //     AAICLUSTER(
+    //         ch_species_reps_fna_gz
+    //     )
+    // }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: UPDATE
+    // inputs:
+    // - [ [ meta ], mq_plus_viruses.fna.gz ]
+    // - [ [ meta ], hq_viruses_seqhasher.tsv.gz ]
+    // - [ [ meta ], hq_viruses_unique.fna.gz ]
+    // - [ [ meta ], hq_viruses_unique.tsv.gz ]
+    // - [ [ meta ], classify_rename.classify.tsv.gz ]
+    // steps:
+    // - SEQKIT_SPLIT (module)
+    // - BACPHLIP (module)
+    // - UHVDB_LIFESTYLE (module)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
+    if ( params.run_update ) {
+        UPDATE(
+            CLASSIFY.out.mq_plus_viruses_fna_gz,
+            HCFILTER.out.seqhasher_tsv_gz,
+            HCFILTER.out.hq_viruses_unique_fna_gz,
+            HCFILTER.out.hq_viruses_unique_tsv_gz,
+            HCFILTER.out.hq_viruses_genomovars_fna_gz,
+            HCFILTER.out.hq_viruses_genomovars_tsv_gz,
+        )
+    }
+
+    //-------------------------------------------
+    // SUBWORKFLOW: REFERENCEANALYZE
+    // inputs:
+    // - [ [ meta ], species_reps.fna.gz ]
+    // outputs:
+    // - [ [ meta ], aniclust.tsv.gz ]
+    // - [ [ meta ], species_reps.fna.gz ]
+    // steps:
+    // - SEQKIT_SPLIT (module)
+    // - BACPHLIP (module)
+    // - UHVDB_LIFESTYLE (module)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
+
+    //-------------------------------------------
+    // SUBWORKFLOW: ASSEMBLYANALYZE
+    // inputs:
+    // - [ [ meta ], species_reps.fna.gz ]
+    // outputs:
+    // - [ [ meta ], aniclust.tsv.gz ]
+    // - [ [ meta ], species_reps.fna.gz ]
+    // steps:
+    // - SEQKIT_SPLIT (module)
+    // - BACPHLIP (module)
+    // - UHVDB_LIFESTYLE (module)
+    // - UHVDB_CATHEADER (module)
+    //--------------------------------------------
 }

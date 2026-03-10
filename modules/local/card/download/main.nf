@@ -5,7 +5,9 @@ process CARD_DOWNLOAD {
     tag "CARD v4.0.1"
     
     output:
-    path("CARD.dmnd") , emit: dmnd
+    path("CARD.dmnd")       , emit: dmnd
+    path(".command.log")    , emit: log
+    path(".command.sh")     , emit: script
 
     script:
     """

@@ -9,6 +9,8 @@ process SPRING_CAT {
 
     output:
     tuple val(meta), path("${meta.id}.spring")  , emit: spring
+    path(".command.log")                        , emit: log
+    path(".command.sh")                         , emit: script
 
     script:
     def spring_list     = springs.collect { spring -> spring.toString() }.join(',')

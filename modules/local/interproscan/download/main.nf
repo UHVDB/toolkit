@@ -7,21 +7,23 @@ process INTERPROSCAN_DOWNLOAD {
 
     output:
     path("interproscan-5.76-107.0") , emit: db
+    path(".command.log")            , emit: log
+    path(".command.sh")             , emit: script
 
     script:
     """
-    # download and setup interproscan database
+    ### Download
     wget https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.76-107.0/interproscan-5.76-107.0-64-bit.tar.gz
     wget https://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.76-107.0/interproscan-5.76-107.0-64-bit.tar.gz.md5
 
-    # check md5sum
+    ### Check md5sum
     md5sum -c interproscan-5.76-107.0-64-bit.tar.gz.md5
 
-    # extract
+    ### Extract
     tar -pxvzf interproscan-5.76-107.0-64-bit.tar.gz
     rm -rf interproscan-5.76-107.0-64-bit.tar.gz
 
-    # setup
+    ### Setup
     cd interproscan-5.76-107.0
     python3 setup.py -f interproscan.properties
     """

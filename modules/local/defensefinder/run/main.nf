@@ -12,6 +12,8 @@ process DEFENSEFINDER_RUN {
     tuple val(meta), path("${meta.id}.defense_finder_systems.tsv.gz")   , emit: systems_tsv_gz
     tuple val(meta), path("${meta.id}.defense_finder_genes.tsv.gz")     , emit: genes_tsv_gz
     tuple val(meta), path("${meta.id}.defense_finder_hmm.tsv.gz")       , emit: hmm_tsv_gz
+    path(".command.log")                                                , emit: log
+    path(".command.sh")                                                 , emit: script
 
     script:
     """

@@ -5,11 +5,13 @@ process DIAMOND_BLASTP {
     // Singularity: https://wave.seqera.io/view/builds/bd-218fef62763f7568_1?_gl=1*1rtwf0g*_gcl_au*NTUzODYxMTI2LjE3Njc2NTE5OTY.
 
     input:
-    tuple val(meta) , path(fna_gz)  , path(dmnd)
+    tuple val(meta) , path(fna_gz), path(dmnd)
 
     output:
     tuple val(meta), path("${meta.id}.diamond_blastp.tsv.gz")   , emit: tsv_gz
     tuple val(meta), path("${meta.id}.pyrodigalgv.faa.gz")      , emit: faa_gz
+    path(".command.log")                                        , emit: log
+    path(".command.sh")                                         , emit: script
 
     script:
     """
@@ -20,10 +22,10 @@ process DIAMOND_BLASTP {
         --jobs ${task.cpus} \\
         > /dev/null 2>&1
 
-    ### Align genes to reference
+    ### Run DIAMOND
     diamond \\
         blastp \\
-        ${params.diamond_args} \\
+        -k 0 -e 1e-3 --very-sensitive \\
         --query ${meta.id}.pyrodigalgv.faa  \\
         --db ${dmnd} \\
         --threads ${task.cpus} \\

@@ -10,10 +10,12 @@ process VFDB_DIAMOND {
 
     output:
     tuple val(meta), path("${meta.id}.vfdb.tsv.gz") , emit: tsv_gz
+    path(".command.log")                            , emit: log
+    path(".command.sh")                             , emit: script
 
     script:
     """
-    ### Align genes to reference
+    ### Run DIAMOND
     diamond \\
         blastp \\
         --very-sensitive --iterate --max-target-seqs 1 --id 80 --query-cover 40 --subject-cover 40 \\

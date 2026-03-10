@@ -6,11 +6,13 @@ process PHAROKKA_INSTALLDATABASES {
     tag "Pharokka v1.8.2"
 
     output:
-    path("pharokka_db/")   , emit: db
+    path("pharokka_db/")    , emit: db
+    path(".command.log")    , emit: log
+    path(".command.sh")     , emit: script
 
     script:
     """
-    # download pharokka database
+    ### Download DB
     install_databases.py \\
         -o pharokka_db
     """
