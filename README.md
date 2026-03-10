@@ -1,8 +1,7 @@
 # UHVDB/toolkit
-**Unified Human Virus Database** toolkit
 
 ## Introduction
-**UHMVB/toolkit** is a Nextflow pipeline for consolidating and expanding human virome databases in a consistent, high-confidence mann
+**UHMVB/toolkit** is a Nextflow pipeline for updating and utilizing the Unified Human Virome Database
 
 ## Databases
 
