@@ -1,5 +1,5 @@
 # UHVDB/toolkit
-Unified Human Virus Database toolkit
+**Unified Human Virus Database** toolkit
 
 ## Introduction
 **UHMVB/toolkit** is a Nextflow pipeline for consolidating and expanding human virome databases in a consistent, high-confidence mann
@@ -142,6 +142,7 @@ For details about the output files and reports, please refer to the [`OUTPUT.md`
    - Number of virus hallmarks/structural genes and their dN/dS relative to known active viruses (https://www.nature.com/articles/s41586-025-09614-7)
    - Presence of CRISPR spacer in short reads targeting UHVDB virus or assembled virus (https://doi.org/10.1101/2025.06.12.659409 )
    - Presence of a virus species (or genomovar) in a highly-enriched dataset (https://doi.org/10.1101/2024.02.19.580813)
+- Add nf-tests to pipeline
 
 ## Contributions and Support
 
