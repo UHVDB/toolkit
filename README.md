@@ -6,16 +6,16 @@
 ## Databases
 
 ### Current database
-| Database | Release     | Sequence count | Description | Samplesheet |
-|----------|-------------|----------------|-------------|-------------|
-| UHVDB | 2026-03-13 | | Adds viruses from cystic fibrosis (CF) related MAGs and metagenomes | |
+| URL | Release     | Sequence count | Description | Samplesheet |
+|-----|-------------|----------------|-------------|-------------|
+| | 2026-03-13 | | Adds viruses from cystic fibrosis (CF) related MAGs and metagenomes | |
 
 ### Database history
-| Database | Release     | Sequence count | Description | Samplesheet |
-|----------|-------------|----------------|-------------|-------------|
-| UHVDB | 2026-03-12 | | Adds viruses from human airway, urogenital, and skin metagenome assemblies. | |
-| UHVDB | 2026-03-11 | | Adds viruses from 8 pre-existing human virus databases. | |
-| UHVDB | 2026-03-10 | | Initial release of UHVDB created from UHGV HQ+ confident & uncertain viruses. | |
+| URL | Release     | Sequence count | Description | Samplesheet |
+|-----|-------------|----------------|-------------|-------------|
+| | 2026-03-12 | | Adds viruses from human airway, urogenital, and skin metagenome assemblies. | |
+| | 2026-03-11 | | Adds viruses from 8 pre-existing human virus databases. | |
+| | 2026-03-10 | | Initial release of UHVDB created from UHGV HQ+ confident & uncertain viruses. | |
 
 ## Pipeline Summary
 
