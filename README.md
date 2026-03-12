@@ -1,14 +1,14 @@
 # UHVDB/toolkit
 
 ## Introduction
-**UHMVB/toolkit** is a Nextflow pipeline for updating and utilizing the Unified Human Virome Database
+**UHVB/toolkit** is a Nextflow pipeline for updating and utilizing the Unified Human Virome Database
 
 ## Databases
 
 ### Current database
 | URL | Release     | Sequence count | Description | Samplesheet |
 |-----|-------------|----------------|-------------|-------------|
-| | 2026-03-13 | | Adds viruses from cystic fibrosis (CF) related MAGs and metagenomes | |
+| | 2026-03-13 | | Adds viruses from cystic fibrosis (CF) related MAGs and metagenome assemblies | |
 
 ### Database history
 | URL | Release     | Sequence count | Description | Samplesheet |
