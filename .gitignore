@@ -8,3 +8,5 @@ testing*
 *.pyc
 null/
 .lineage/
+test_*/
+TEST*/

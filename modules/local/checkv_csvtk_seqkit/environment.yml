@@ -1,0 +1,7 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::checkv=1.1.1
+- bioconda::seqkit=2.13.0
+- conda-forge::csvtk=0.37.0

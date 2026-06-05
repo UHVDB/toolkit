@@ -8,7 +8,7 @@ process VIRALVERIFY_DOWNLOAD {
 
     output:
     path "nbc_hmms.hmm", emit: viralverify_db
-    tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
+    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

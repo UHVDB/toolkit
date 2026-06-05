@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::seqkit=2.13.0
+- conda-forge::polars=1.41.1

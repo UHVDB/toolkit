@@ -1,10 +1,8 @@
-// include { GENOMAD_DOWNLOADHALLMARKS } from '../../modules/local/genomad/downloadhallmarks/main'
-include { CSVTK_FILTER2             } from '../../../modules/local/csvtk/filter2/main'
-include { SEQKIT_GREP               } from '../../../modules/nf-core/seqkit/grep/main'
-include { HMMER_HMMSEARCH           } from '../../../modules/nf-core/hmmer/hmmsearch/main'
-include { CSVTK_FILTER2 as CSVTK_FILTER2_HALLMARKS } from '../../../modules/local/csvtk/filter2/main'
-
-
+include { GENOMAD_DOWNLOADHALLMARKS } from '../../../modules/local/genomad/downloadhallmarks/main'
+include { CSVTK_SEQKIT } from '../../../modules/local/csvtk_seqkit/main'
+include { CSVTK_SEQKIT as CSVTK_SEQKIT_CONFIDENT } from '../../../modules/local/csvtk_seqkit/main'
+include { GENOMAD_HMMSEARCH } from '../../../modules/local/genomad/hmmsearch/main'
+include { rmEmptyFastAs } from '../functions/main'
 workflow HCFILTER {
 
     take:
@@ -13,65 +11,41 @@ workflow HCFILTER {
 
     main:
 
-
-    // //
-    // // MODULE: Download hallmark HMMs and metadata from Genomad
-    // //
-    // GENOMAD_DOWNLOADHALLMARKS()
-
     //
-    // MODULE: Identify uncertain viruses in UHVDB_CLASSIFY outputs
+    // MODULE: Download hallmark HMMs and metadata from Genomad
     //
-    CSVTK_FILTER2(
-        classify_tsv_gz,
-    )
-
-    // Create input for seqkit grep
-    ch_seqkit_grep_input = hq_viruses_fna_gz
-        .join(CSVTK_FILTER2.out.csv) // join with filtered completenesss by meta
-        .multiMap { meta, fasta, tsv ->
-            fasta: [ meta, fasta ] 
-            tsv: [ tsv ]
-        } 
+    GENOMAD_DOWNLOADHALLMARKS()
 
     //
-    // MODULE: Extract uncertain viruses from UVHDB_CLASSIFY outputs
+    // MODULE: Extract uncertain viruses from HQ viruses
     //
-    SEQKIT_GREP(
-        ch_seqkit_grep_input.fasta,
-        ch_seqkit_grep_input.tsv
+    CSVTK_SEQKIT(
+        classify_tsv_gz.join(rmEmptyFastAs(hq_viruses_fna_gz))
     )
 
     //
-    // MODULE: Perform HMMsearch for Genomad hallmarks on uncertain viruses
+    // MODULE: Extract confident viruses from HQ viruses
     //
-    HMMER_HMMSEARCH(
-        SEQKIT_GREP.out.filter.combine()
+    CSVTK_SEQKIT_CONFIDENT(
+        classify_tsv_gz.join(rmEmptyFastAs(hq_viruses_fna_gz))
     )
 
     //
-    // MODULE: Combine HMMsearch output TSVs into a single file with a header
+    // MODULE: Run HMMsearch on uncertain viruses
     //
-    ch_catheader_input = GENOMAD_HMMSEARCH.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id:'new_hcfilter' ], tsv_gz, 1, 'tsv.gz' ] }
-    UHVDB_CATHEADER(
-        ch_catheader_input,
-        "${params.output_dir}/outputs/hcfilter"
+    GENOMAD_HMMSEARCH(
+        rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz),
+        GENOMAD_DOWNLOADHALLMARKS.out.hmm.collect(),
+        GENOMAD_DOWNLOADHALLMARKS.out.tsv_gz.collect()
     )
-
-    //
-    // MODULE: Combine certain and hmm-passing virus FASTA files into a single file
-    //
-    ch_catnoheader_input = GENOMAD_HMMSEARCH.out.fna_gz.mix( UHVDB_UNCERTAIN.out.certain_fna_gz ).map { _meta, fna_gz -> fna_gz }.collect().map { fna_gz -> [ [ id:'new_hq_hc_viruses' ], fna_gz, 'fna.gz' ] }
-    UHVDB_CATNOHEADER(
-        ch_catnoheader_input,
-        "${params.output_dir}/outputs/hcfilter"
-    )
-
-    ch_hcfilter_tsv_gz     = UHVDB_CATHEADER.out.combined
-    ch_hq_hc_viruses_fna_gz   = UHVDB_CATNOHEADER.out.combined
 
     emit:
-    hcfilter_tsv_gz             = ch_hcfilter_tsv_gz
-    hq_hc_viruses_fna_gz        = ch_hq_hc_viruses_fna_gz
+    fna_gz = GENOMAD_HMMSEARCH.out.fna_gz
+        .map { meta, fna_gz ->
+                meta.id = meta.id + "_uncertain"
+                [ meta, fna_gz ]
+        }
+        .mix(CSVTK_SEQKIT_CONFIDENT.out.fna_gz)
+    tsv_gz = GENOMAD_HMMSEARCH.out.tsv_gz
 }
 

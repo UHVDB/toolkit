@@ -1,0 +1,8 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::genomad=1.12.0
+- bioconda::seqkit=2.13.0
+- conda-forge::aria2=1.37.0
+- conda-forge::csvtk=0.37.0

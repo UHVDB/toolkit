@@ -14,14 +14,10 @@ workflow PREPROCESS {
     //
     // MODULE: Download deacon index
     //
-    if ( params.deacon_idx ) {
-        ch_deacon_idx = channel.fromPath("${params.deacon_idx}").first()
-    } else {
-        DEACON_INDEXFETCH(
-            deacon_index_name
-        )
-        ch_deacon_idx = DEACON_INDEXFETCH.out.idx.first()
-    }
+    DEACON_INDEXFETCH(
+        deacon_index_name
+    )
+    ch_deacon_idx = DEACON_INDEXFETCH.out.idx.first()
 
     //
     // MODULE: Download, QC, and remove human reads, then compress with spring

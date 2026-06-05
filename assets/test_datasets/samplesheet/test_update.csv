@@ -1,8 +1,8 @@
 sample,source_db,source_type,body_site,group,acc,fastq_1,fastq_2,fna
 uhgv_test_fna,UHGV,Database,Gut,,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/main/assets/test_datasets/fnas/uhgv_hq_plus_test_2.fna.gz
-SAMEA3914866,SPIRE,Assembly,Airways,,,,,https://spire.embl.de/download_assembly/SAMEA3914866.fa.gz
-SAMEA3914864_1,SPIRE,Assembly,Airways,,,,,https://spire.embl.de/download_assembly/SAMEA3914864.fa.gz
-SAMEA3914864_2,SPIRE,Assembly,,,,,,https://spire.embl.de/download_assembly/SAMEA3914864.fa.gz
+SAMEA3914866,SPIRE,Assembly,Airways,,,,,https://spire.embl.de/download_assembly/SAMEA3914866
+SAMEA3914864_1,SPIRE,Assembly,Airways,,,,,https://spire.embl.de/download_assembly/SAMEA3914864
+SAMEA3914864_2,SPIRE,Assembly,,,,,,https://spire.embl.de/download_assembly/SAMEA3914864
 samplesheet_gcode15,,Assembly,Urogenital,group3,,,,https://raw.githubusercontent.com/althonos/pyrodigal-gv/refs/heads/main/pyrodigal_gv/tests/phage_Topaz.fna
 samplesheet_defense,,Assembly,,group4,,,,https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/333/765/GCF_003333765.1_ASM333376v1/GCF_003333765.1_ASM333376v1_genomic.fna.gz
 samplesheet_uncertain2confident,,Assembly,,group4,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/main/assets/test_datasets/fnas/uncertain2confident.fna.gz

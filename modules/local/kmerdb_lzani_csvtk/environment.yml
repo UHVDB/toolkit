@@ -1,0 +1,8 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::kmer-db=2.3.1
+- bioconda::lz-ani=1.2.3
+- conda-forge::csvtk=0.37.0
+- conda-forge::python=3.14.5

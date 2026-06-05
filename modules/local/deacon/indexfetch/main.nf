@@ -11,7 +11,7 @@ process DEACON_INDEXFETCH {
 
     output:
     path "*.idx", emit: idx
-    tuple val("${task.process}"), val('deacon'), eval('deacon --version | head -n1 | sed "s/deacon //g"'), emit: versions_deacon, topic: versions
+    // tuple val("${task.process}"), val('deacon'), eval('deacon --version | head -n1 | sed "s/deacon //g"'), emit: versions_deacon, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

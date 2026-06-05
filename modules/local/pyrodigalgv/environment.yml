@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::pyrodigal-gv=0.3.2
+- conda-forge::pigz=2.8

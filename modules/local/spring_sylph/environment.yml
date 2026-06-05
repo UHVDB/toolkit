@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::spring=1.1.1
+- bioconda::sylph=0.9.0

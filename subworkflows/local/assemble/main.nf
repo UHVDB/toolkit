@@ -15,7 +15,7 @@ workflow ASSEMBLE {
     // Create channel from input spring
     def ch_spring = spring
 
-    if ( params.run_coassembly ) {
+    if ( params.include_coassembly ) {
         // group and set group as new id
         ch_coassembly_spring = spring
             .map { meta, _spring ->

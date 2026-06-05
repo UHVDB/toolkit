@@ -12,6 +12,7 @@ process TRTRIMMER {
 
     output:
     tuple val(meta), path("*.tr-trimmer.fna.gz")    , emit: fna_gz
+    tuple val("${task.process}"), val('tr-trimmer'), eval('tr-trimmer --version'), topic: versions, emit: versions_tr_trimmer
 
     script:
     def args = task.ext.args ?: ''

@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::coverm=0.7.0
+- bioconda::spring=1.1.1
