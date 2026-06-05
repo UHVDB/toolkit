@@ -1,0 +1,64 @@
+nextflow_process {
+
+    name "Test Process FIND_CONCATENATEHEADERS"
+    script "../main.nf"
+    process "FIND_CONCATENATEHEADERS"
+    tag "modules"
+    tag "modules_local"
+    tag "find"
+    tag "find/concatenateheaders"
+
+    test("test_cat_unzipped_single_header") {
+        config "./nextflow_unzipped_zipped.config"
+
+        when {
+            process {
+                """
+                input[0] =
+                    [
+                        [ id:'test', single_end:true ],
+                        [
+                            file('data/single_header_a.tsv', checkIfExists: true),
+                            file('data/single_header_b.tsv', checkIfExists: true)
+                        ]
+                    ]
+                input[1] = 1
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(sanitizeOutput(process.out)).match() },
+            )
+        }
+    }
+
+    test("test_cat_unzipped_multi_header") {
+        config "./nextflow_unzipped_zipped.config"
+
+        when {
+            process {
+                """
+                input[0] =
+                    [
+                        [ id:'test', single_end:true ],
+                        [
+                            file('data/multi_header_a.tsv', checkIfExists: true),
+                            file('data/multi_header_b.tsv', checkIfExists: true)
+                        ]
+                    ]
+                input[1] = 2
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(sanitizeOutput(process.out)).match() },
+            )
+        }
+    }
+}
