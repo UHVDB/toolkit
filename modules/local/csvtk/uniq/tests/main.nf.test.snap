@@ -1,0 +1,125 @@
+{
+    "csv - default": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.csv:md5,f5ff611603761861e4d21a21eafa376c"
+                    ]
+                ],
+                "1": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "csv": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.csv:md5,f5ff611603761861e4d21a21eafa376c"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-05T22:35:00.000000",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "25.10.4"
+        }
+    },
+    "csv - tsv output": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.tsv:md5,d3e85046f41164542fa7681216d009cf"
+                    ]
+                ],
+                "1": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "csv": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.tsv:md5,d3e85046f41164542fa7681216d009cf"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-05T22:35:00.000000",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "25.10.4"
+        }
+    },
+    "csv - default - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.csv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "csv": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.csv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "CSVTK_UNIQ",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-05T22:35:00.000000",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "25.10.4"
+        }
+    }
+}

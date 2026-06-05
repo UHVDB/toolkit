@@ -1,0 +1,82 @@
+nextflow_process {
+
+    name "Test Process CSVTK_UNIQ"
+    script "../main.nf"
+    process "CSVTK_UNIQ"
+
+    tag "modules"
+    tag "modules_local"
+    tag "csvtk"
+    tag "csvtk/uniq"
+
+    test("csv - default") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file("${projectDir}/modules/local/csvtk/uniq/tests/test.csv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("csv - tsv output") {
+
+        config "./tsv.config"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file("${projectDir}/modules/local/csvtk/uniq/tests/test.csv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+    test("csv - default - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file("${projectDir}/modules/local/csvtk/uniq/tests/test.csv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}
