@@ -1,0 +1,47 @@
+nextflow_process {
+
+    name "Test Process ARIA2C_SEQKIT_GENOMAD_CSVTK_SEQKIT"
+    script "../main.nf"
+    process "ARIA2C_SEQKIT_GENOMAD_CSVTK_SEQKIT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "aria2c_seqkit_genomad_csvtk_seqkit"
+
+    test("stub run") {
+
+        options "-stub-run"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    [
+                        [ 'virus_a', 'https://example.com/virus_a.fna.gz' ],
+                        [ 'virus_b', 'https://example.com/virus_b.fna.gz' ]
+                    ]
+                ]
+                input[1] = file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.fna_gz.size() == 1 },
+                { assert process.out.summary_tsv_gz.size() == 1 },
+                { assert process.out.genes_tsv_gz.size() == 1 },
+                { assert process.out.fna_gz[0][0].id == 'test' },
+                { assert process.out.fna_gz[0][1].name == 'test_virus.fna.gz' },
+                { assert process.out.summary_tsv_gz[0][1].name == 'test_virus_summary.tsv.gz' },
+                { assert process.out.genes_tsv_gz[0][1].name == 'test_virus_genes.tsv.gz' },
+                { assert process.out.versions_genomad.size() == 1 },
+                { assert process.out.versions_seqkit.size() == 1 },
+                { assert process.out.versions_aria2.size() == 1 },
+                { assert process.out.versions_csvtk.size() == 1 }
+            )
+        }
+    }
+}
