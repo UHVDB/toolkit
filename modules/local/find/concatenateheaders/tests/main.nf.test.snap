@@ -1,0 +1,38 @@
+{
+    "test_cat_unzipped_single_header": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": true
+                    },
+                    "combined.tsv.gz:md5,d23faf2c5d62c7881bcb7efe98208514"
+                ]
+            ]
+        ],
+        "timestamp": "2026-06-06T00:05:00.96293847",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.3"
+        }
+    },
+    "test_cat_unzipped_multi_header": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": true
+                    },
+                    "combined.tsv.gz:md5,66a91bcf7f89dcf3eed14c6ee00c67ed"
+                ]
+            ]
+        ],
+        "timestamp": "2026-06-06T00:05:05.600070315",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.3"
+        }
+    }
+}
