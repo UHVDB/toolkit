@@ -18,8 +18,8 @@ nextflow_process {
                     [
                         [ id:'test', single_end:true ],
                         [
-                            file('testdata/single_header_a.tsv', checkIfExists: true),
-                            file('testdata/single_header_b.tsv', checkIfExists: true)
+                            file(projectDir.toString() + '/modules/local/find/concatenateheaders/tests/testdata/single_header_a.tsv', checkIfExists: true),
+                            file(projectDir.toString() + '/modules/local/find/concatenateheaders/tests/testdata/single_header_b.tsv', checkIfExists: true)
                         ]
                     ]
                 input[1] = 1
@@ -45,8 +45,8 @@ nextflow_process {
                     [
                         [ id:'test', single_end:true ],
                         [
-                            file('testdata/multi_header_a.tsv', checkIfExists: true),
-                            file('testdata/multi_header_b.tsv', checkIfExists: true)
+                            file(projectDir.toString() + '/modules/local/find/concatenateheaders/tests/testdata/multi_header_a.tsv', checkIfExists: true),
+                            file(projectDir.toString() + '/modules/local/find/concatenateheaders/tests/testdata/multi_header_b.tsv', checkIfExists: true)
                         ]
                     ]
                 input[1] = 2
