@@ -1,0 +1,33 @@
+gene	annotation_accessions	plasmid_hallmark	taxname	marker
+seq_confident_g1	NA	0	NA	marker_a
+seq_confident_g2	NA	0	NA	marker_b
+seq_confident_g3	NA	0	NA	marker_c
+seq_uncertain_one_g1	NA	0	NA	marker_a
+seq_uncertain_zero_g1	NA	0	NA	marker_a
+seq_nonviral_conj_g1	K03194	0	NA	marker_a
+seq_nonviral_dup_g1	NA	0	NA	dup_marker
+seq_nonviral_dup_g2	NA	0	NA	dup_marker
+seq_nonviral_dup_g3	NA	0	NA	other_marker
+seq_nonviral_dup_g4	NA	0	NA	third_marker
+seq_filtered_g1	NA	0	NA	marker_a
+seq_dtr_complete_g1	NA	0	NA	marker_a
+seq_dtr_complete_g2	NA	0	NA	marker_b
+seq_dtr_complete_g3	NA	0	NA	marker_c
+seq_plasmid_hallmark_g1	NA	1	NA	marker_a
+seq_host_genes_g1	NA	0	NA	marker_a
+seq_viral_genes_ratio_g1	NA	0	NA	marker_a
+seq_viral_genes_ratio_g2	NA	0	NA	marker_b
+seq_viral_genes_ratio_g3	NA	0	NA	marker_c
+seq_viral_genes_ratio_g4	NA	0	NA	marker_d
+seq_viral_genes_ratio_g5	NA	0	NA	marker_e
+seq_viral_genes_ratio_g6	NA	0	NA	marker_f
+seq_zot_g1	PF05707	0	NA	marker_a
+seq_inoviridae_g1	NA	0	Inoviridae phage	ino_a
+seq_inoviridae_g2	NA	0	Inoviridae phage	ino_b
+seq_inoviridae_g3	NA	0	Inoviridae phage	ino_c
+seq_inoviridae_g4	NA	0	Inoviridae phage	ino_d
+seq_inoviridae_g5	NA	0	Inoviridae phage	ino_e
+seq_plasmid_pred_g1	NA	0	NA	marker_a
+seq_score_dash_g1	NA	0	NA	marker_a
+seq_genomad_filtered_g1	NA	0	NA	marker_a
+seq_checkv_filtered_g1	NA	0	NA	marker_a

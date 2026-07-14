@@ -1,0 +1,17 @@
+Contig name,Prediction,Score,Pfam hits
+seq_confident,Virus,20,NA
+seq_uncertain_one,NotVirus,5,NA
+seq_uncertain_zero,NotVirus,5,NA
+seq_nonviral_conj,Chromosome,10,NA
+seq_nonviral_dup,NotVirus,5,NA
+seq_filtered,Virus,20,NA
+seq_dtr_complete,Virus,20,NA
+seq_plasmid_hallmark,NotVirus,5,NA
+seq_host_genes,NotVirus,5,NA
+seq_viral_genes_ratio,NotVirus,5,NA
+seq_zot,NotVirus,5,NA
+seq_inoviridae,NotVirus,5,NA
+seq_plasmid_pred,Plasmid,10,NA
+seq_score_dash,Virus,-,NA
+seq_genomad_filtered,Virus,20,NA
+seq_checkv_filtered,Virus,20,NA

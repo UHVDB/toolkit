@@ -1,0 +1,17 @@
+seq_name	length	topology	coordinates	n_genes	genetic_code	virus_score	fdr	n_hallmarks	marker_enrichment	taxonomy
+seq_confident	12000	NA	NA	5	11	0.99	0.01	3	1.5	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Myoviridae
+seq_uncertain_one	10000	NA	NA	2	11	0.99	0.01	0	0.5	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;
+seq_uncertain_zero	2000	NA	NA	2	11	0.70	0.30	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_nonviral_conj	5000	NA	NA	2	11	0.50	0.50	0	0.0	Viruses;Monodnaviria;Loebvirae;Hofneiviricota;Faserviricetes;Inoviridae;
+seq_nonviral_dup	5000	NA	NA	4	11	0.99	0.01	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_filtered	12000	NA	NA	2	11	0.99	0.01	3	1.5	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Myoviridae
+seq_dtr_complete	12000	NA	NA	5	11	0.99	0.01	3	1.5	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Caudoviricetes;Siphoviridae
+seq_plasmid_hallmark	5000	NA	NA	2	11	0.99	0.01	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_host_genes	5000	NA	NA	2	11	0.99	0.01	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_viral_genes_ratio	6000	NA	NA	6	11	0.50	0.50	0	0.0	Viruses;Monodnaviria;Loebvirae;Hofneiviricota;Faserviricetes;Inoviridae;
+seq_zot	5000	NA	NA	1	11	0.50	0.50	0	0.0	Viruses;Monodnaviria;Loebvirae;Hofneiviricota;Faserviricetes;Inoviridae;
+seq_inoviridae	5000	NA	NA	5	11	0.50	0.50	0	0.0	Viruses;Monodnaviria;Loebvirae;Hofneiviricota;Faserviricetes;Inoviridae
+seq_plasmid_pred	5000	NA	NA	2	11	0.99	0.01	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_score_dash	5000	NA	NA	2	11	0.99	0.01	0	0.0	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
+seq_genomad_filtered	5000	NA	NA	2	11	0.99	0.01	3	1.5	Unclassified
+seq_checkv_filtered	5000	NA	NA	2	11	0.99	0.01	3	1.5	Viruses;Duplodnaviria;Heunggongvirae;Uroviricota;Mesoniviricetes;
