@@ -114,15 +114,15 @@ workflow TOOLKIT {
     }
 
     if ( params.run_update ) {
-        // //
-        // // SUBWORKFLOW: Update CheckV's database and re-run Checkv to identify HQ viruses
-        // //
-        // HQFILTER(
-        //     CLASSIFY.out.virus_fna_gz,
-        //     CLASSIFY.out.complete_fna_gz,
-        //     CLASSIFY.out.tsv_gz,
-        //     ch_checkv_db
-        // )
+        //
+        // SUBWORKFLOW: Update CheckV's database and re-run Checkv to identify HQ viruses
+        //
+        HQFILTER(
+            CLASSIFY.out.confident_fna_gz.mix(CLASSIFY.out.uncertain_fna_gz),
+            CLASSIFY.out.complete_fna_gz,
+            CLASSIFY.out.tsv_gz,
+            ch_checkv_db
+        )
 
         // //
         // // SUBWORKFLOW: Identify confident viruses from HQ viruses

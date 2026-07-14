@@ -1,5 +1,5 @@
 include { DEACON_INDEXFETCH } from '../../../modules/local/deacon/indexfetch'
-include { XSRA_FASTP_DEACON_SPRING } from '../../../modules/local/xsra_fastp_deacon_spring'
+include { SRACHA_FASTP_DEACON_SPRING } from '../../../modules/local/sracha_fastp_deacon_spring'
 include { FASTP_DEACON_SPRING } from '../../../modules/local/fastp_deacon_spring'
 
 workflow PREPROCESS {
@@ -22,12 +22,12 @@ workflow PREPROCESS {
     //
     // MODULE: Download, QC, and remove human reads, then compress with spring
     //
-    XSRA_FASTP_DEACON_SPRING(
+    SRACHA_FASTP_DEACON_SPRING(
         sras,
         ch_deacon_idx
     )
-    ch_preprocessed_spring = XSRA_FASTP_DEACON_SPRING.out.spring
-        .combine(XSRA_FASTP_DEACON_SPRING.out.read_count, by:0)
+    ch_preprocessed_spring = SRACHA_FASTP_DEACON_SPRING.out.spring
+        .combine(SRACHA_FASTP_DEACON_SPRING.out.read_count, by:0)
         .map { meta, spring, read_count ->
             meta.single_end = (read_count == 1)
             return [ meta, spring ]

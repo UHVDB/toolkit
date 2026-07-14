@@ -11,7 +11,7 @@ process CHECKV_DOWNLOAD {
     val checkv_zenodo
 
     output:
-    path "checkv_db", emit: checkv_db
+    path "checkv_db/*", emit: checkv_db
     // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
 
     when:
@@ -21,12 +21,11 @@ process CHECKV_DOWNLOAD {
     if ( task.attempt == 1 ) {
         """
         ### Download database
-        wget ${checkv_s3}checkv_db.tar.gz
+        wget ${checkv_s3} -O checkv_db.tar.gz
 
         ### Extract database
-        mkdir -p checkv_db tmp
-        tar -xvf checkv_db.tar.gz -C ./tmp
-        mv tmp/*/*/ checkv_db/
+        mkdir -p checkv_db
+        tar -xvf checkv_db.tar.gz -C ./checkv_db
 
         ### Cleanup
         rm checkv_db.tar.gz

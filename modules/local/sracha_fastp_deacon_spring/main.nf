@@ -1,11 +1,11 @@
-process XSRA_FASTP_DEACON_SPRING {
+process SRACHA_FASTP_DEACON_SPRING {
     tag "${meta.id}"
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/07/07f2814c3c48234ded08b489e77986b484886bf3a4b393b40017e7109d623d1b/data' :
-        'community.wave.seqera.io/library/deacon_fastp_spring:cf5415ca9c1df5a8' }"
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/bd/bdc4913331666b89a8cfe1c04ea5a4dd493b597a91001945bbca125c8c67e438/data' :
+        'community.wave.seqera.io/library/deacon_fastp_spring_sracha:88eaf78239e0c640' }"
     // xsra is installed in the container via cargo (not available on bioconda)
 
     input:
@@ -24,19 +24,17 @@ process XSRA_FASTP_DEACON_SPRING {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    ### Download with xsra
-    xsra dump \\
+    ### Download with sracha
+    sracha get \\
         ${acc} \\
-        --outdir ${acc}/ \\
-        --split \\
-        --prefix ${acc}_ \\
-        --compression g \\
-        --threads ${task.cpus}
+        --format sralite \\
+        --threads ${task.cpus} \\
+        --output-dir ${acc}/
 
     ### Prepare fastp and deacon input and output files
-    if ls ${acc}/${acc}_1.fq.gz 1> /dev/null 2>&1; then
-        mv ${acc}/*_0.fq.gz ${acc}/${acc}_R1.fastq.gz
-        mv ${acc}/*_1.fq.gz ${acc}/${acc}_R2.fastq.gz
+    if ls ${acc}/${acc}_2.fastq.gz 1> /dev/null 2>&1; then
+        mv ${acc}/*_1.fastq.gz ${acc}/${acc}_R1.fastq.gz
+        mv ${acc}/*_2.fastq.gz ${acc}/${acc}_R2.fastq.gz
         fastp_reads_in="--in1 ${acc}/${acc}_R1.fastq.gz --in2 ${acc}/${acc}_R2.fastq.gz"
         fastp_reads_out="--out1 ${acc}_R1.fastp.fastq.gz --out2 ${acc}_R2.fastp.fastq.gz"
         deacon_reads_in="${acc}_R1.fastp.fastq.gz ${acc}_R2.fastp.fastq.gz"
@@ -45,7 +43,7 @@ process XSRA_FASTP_DEACON_SPRING {
         touch ${prefix}.read1
         touch ${prefix}.read2
     else
-        mv ${acc}/*_0.fq.gz ${acc}/${acc}.fastq.gz
+        mv ${acc}/*_1.fastq.gz ${acc}/${acc}.fastq.gz
         fastp_reads_in="--in1 ${acc}/${acc}.fastq.gz"
         fastp_reads_out="--out1 ${acc}.fastp.fastq.gz"
         deacon_reads_in="${acc}.fastp.fastq.gz"

@@ -13,9 +13,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { TOOLKIT  } from './workflows/toolkit'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_toolkit_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_toolkit_pipeline'
+include { TOOLKIT                   } from './workflows/toolkit'
+include { PIPELINE_INITIALISATION   } from './subworkflows/local/utils_nfcore_toolkit_pipeline'
+include { PIPELINE_COMPLETION       } from './subworkflows/local/utils_nfcore_toolkit_pipeline'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
