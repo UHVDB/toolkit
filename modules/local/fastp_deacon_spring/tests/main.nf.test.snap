@@ -1,0 +1,164 @@
+{
+    "paired_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "2": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "3": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ],
+                "spring": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": false
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_deacon": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "versions_fastp": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "versions_spring": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-06T13:42:10.448608919",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "single_end": {
+        "content": [
+            "test.spring"
+        ],
+        "timestamp": "2026-07-06T13:43:58.870493527",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "paired_end": {
+        "content": [
+            "test.spring"
+        ],
+        "timestamp": "2026-07-06T13:44:26.567823315",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "single_end - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "2": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "3": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ],
+                "spring": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_deacon": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "versions_fastp": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "versions_spring": [
+                    [
+                        "FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-06T13:40:10.569381293",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    }
+}

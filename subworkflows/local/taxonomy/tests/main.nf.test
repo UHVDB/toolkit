@@ -1,0 +1,39 @@
+nextflow_workflow {
+
+    name "Test Subworkflow TAXONOMY"
+    script "../main.nf"
+    workflow "TAXONOMY"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/taxonomy"
+
+    test("proteins - stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'test' ],
+                    file("${params.local_testdata_base_path}/fasta/proteins.faa.gz")
+                ])
+                input[1] = Channel.of([
+                    [ id:'combined_classify' ],
+                    file("${params.local_testdata_base_path}/tsv/classify_uhvdb.tsv.gz")
+                ])
+                input[2] = Channel.value(file("${params.local_testdata_base_path}/tsv/uhvdb_metadata.tsv.gz"))
+                input[3] = Channel.value(file("${params.local_testdata_base_path}/tsv/sylph_tax.tsv.gz"))
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+}

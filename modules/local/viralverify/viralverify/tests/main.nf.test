@@ -1,0 +1,63 @@
+nextflow_process {
+
+    name "Test Process VIRALVERIFY_VIRALVERIFY"
+    script "../main.nf"
+    process "VIRALVERIFY_VIRALVERIFY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "viralverify"
+    tag "viralverify/viralverify"
+
+    test("lambda - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                    "${projectDir}/assets/test_datasets/fna/lambda.fna.gz" ]
+                input[1] = []
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("lambda") {
+
+        setup {
+            run("VIRALVERIFY_DOWNLOAD") {
+                script "../../download/main.nf"
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                    "${projectDir}/assets/test_datasets/fna/lambda.fna.gz" ]
+                input[1] = VIRALVERIFY_DOWNLOAD.out.viralverify_db
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(
+                    file(process.out.csv_gz[0][1]).name,
+                    file(process.out.domtblout_gz[0][1]).name,
+                    process.out.versions_viralverify
+                ).match() }
+            )
+        }
+    }
+}

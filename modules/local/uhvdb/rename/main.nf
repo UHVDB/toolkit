@@ -29,4 +29,10 @@ process UHVDB_RENAME {
     ### Compress
     gzip ${prefix}.tsv
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.tsv.gz
+    """
 }

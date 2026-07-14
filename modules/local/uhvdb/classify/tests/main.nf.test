@@ -1,0 +1,202 @@
+import java.util.zip.GZIPInputStream
+
+nextflow_process {
+
+    name "Test Process UHVDB_CLASSIFY"
+    script "../main.nf"
+    process "UHVDB_CLASSIFY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "uhvdb"
+    tag "uhvdb/classify"
+
+    def gunzipText = { gzPath ->
+        def stream = new GZIPInputStream(new FileInputStream(gzPath.toString()))
+        try {
+            return stream.getText('UTF-8')
+        } finally {
+            stream.close()
+        }
+    }
+
+    def parseClassifications = { tsvText ->
+        def lines = tsvText.readLines()
+        def header = lines[0].split('\t').toList()
+        def seqIdx = header.indexOf('seq_name')
+        def classIdx = header.indexOf('uhvdb_virus_classification')
+        def result = [:]
+        lines.drop(1).each { line ->
+            def cols = line.split('\t', -1)
+            result[cols[seqIdx]] = cols[classIdx]
+        }
+        return result
+    }
+
+    def parseTsvColumn = { tsvText, column ->
+        def lines = tsvText.readLines()
+        def header = lines[0].split('\t').toList()
+        def colIdx = header.indexOf(column)
+        def seqIdx = header.indexOf('seq_name')
+        def result = [:]
+        lines.drop(1).each { line ->
+            def cols = line.split('\t', -1)
+            result[cols[seqIdx]] = cols[colIdx]
+        }
+        return result
+    }
+
+    def fastaIds = { fastaText ->
+        fastaText.readLines().findAll { it.startsWith('>') }.collect { it.substring(1) }
+    }
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', db_type:'Assembly', body_site:'Gut', source_db:'test_db' ],
+                             "${projectDir}/assets/test_datasets/fna/viruses.fna.gz",
+                             "${projectDir}/assets/test_datasets/tsv/virus_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/genes.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/quality_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/completeness.tsv",
+                             "${projectDir}/assets/test_datasets/csv/viralverify.csv" ]
+                input[1] = "${projectDir}/assets/test_datasets/txt/dtr_sequences.txt"
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("classify filters and edge cases") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', db_type:'Assembly', body_site:'Gut', source_db:'test_db' ],
+                             "${projectDir}/assets/test_datasets/fna/viruses.fna.gz",
+                             "${projectDir}/assets/test_datasets/tsv/virus_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/genes.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/quality_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/completeness.tsv",
+                             "${projectDir}/assets/test_datasets/csv/viralverify.csv" ]
+                input[1] = "${projectDir}/assets/test_datasets/txt/dtr_sequences.txt"
+                """
+            }
+        }
+
+        then {
+            def tsvText = gunzipText(process.out.tsv_gz[0][1])
+            def classifications = parseClassifications(tsvText)
+            def completeness = parseTsvColumn(tsvText, 'completeness')
+            def completenessMethod = parseTsvColumn(tsvText, 'completeness_method')
+            def confidentFastaIds = fastaIds(gunzipText(process.out.confident_fna_gz[0][1]))
+            def uncertainFastaIds = fastaIds(gunzipText(process.out.uncertain_fna_gz[0][1]))
+            def completeFastaIds = fastaIds(gunzipText(process.out.complete_fna_gz[0][1]))
+
+            assertAll(
+                { assert process.success },
+
+                // Positive scoring criteria
+                { assert classifications['seq_confident'] == 'confident' },          // virus_score, viralverify, hallmarks, ictv family
+                { assert classifications['seq_uncertain_one'] == 'uncertain' },      // genomad virus_score >= 0.95 only
+                { assert classifications['seq_viral_genes_ratio'] == 'uncertain' },   // viral_genes/host_genes >= 3
+                { assert classifications['seq_zot'] == 'uncertain' },                  // zot gene (PF05707)
+                { assert classifications['seq_inoviridae'] == 'confident' },           // inoviridae marker genes >= 5 (+ viral_genes ratio)
+
+                // Zero-score uncertain classification
+                { assert classifications['seq_uncertain_zero'] == 'uncertain' },
+
+                // Negative scoring criteria
+                { assert classifications['seq_nonviral_conj'] == 'non-viral' },        // conjugation gene + chromosome prediction
+                { assert classifications['seq_nonviral_dup'] == 'non-viral' },          // marker duplicity penalty
+                { assert classifications['seq_plasmid_hallmark'] == 'uncertain' },      // plasmid hallmark penalty offsets virus_score
+                { assert classifications['seq_host_genes'] == 'uncertain' },           // host_genes penalty offsets virus_score
+                { assert classifications['seq_plasmid_pred'] == 'uncertain' },        // plasmid prediction penalty offsets virus_score
+
+                // CheckV multi-viral-region warning filter
+                { assert !classifications.containsKey('seq_filtered') },
+
+                // geNomad and CheckV csvtk pre-filters
+                { assert !classifications.containsKey('seq_genomad_filtered') },
+                { assert !classifications.containsKey('seq_checkv_filtered') },
+                { assert !confidentFastaIds.contains('seq_genomad_filtered') },
+                { assert !confidentFastaIds.contains('seq_checkv_filtered') },
+                { assert !uncertainFastaIds.contains('seq_genomad_filtered') },
+                { assert !uncertainFastaIds.contains('seq_checkv_filtered') },
+
+                // DTR completeness boost and complete FASTA selection
+                { assert classifications['seq_dtr_complete'] == 'confident' },
+                { assert completeness['seq_dtr_complete'] == '100.0' },
+                { assert completenessMethod['seq_dtr_complete'] == 'DTR' },
+                { assert completeFastaIds == ['seq_dtr_complete'] },
+
+                // viralverify score dash normalisation
+                { assert classifications['seq_score_dash'] == 'uncertain' },
+
+                // FASTA outputs: confident and uncertain split; deduplicate repeated headers
+                { assert confidentFastaIds.count('seq_confident') == 1 },
+                { assert confidentFastaIds.contains('seq_inoviridae') },
+                { assert confidentFastaIds.contains('seq_dtr_complete') },
+                { assert !confidentFastaIds.contains('seq_nonviral_conj') },
+                { assert !confidentFastaIds.contains('seq_nonviral_dup') },
+                { assert !confidentFastaIds.contains('seq_filtered') },
+                { assert uncertainFastaIds.contains('seq_uncertain_one') },
+                { assert uncertainFastaIds.contains('seq_uncertain_zero') },
+                { assert uncertainFastaIds.contains('seq_viral_genes_ratio') },
+                { assert uncertainFastaIds.contains('seq_zot') },
+                { assert uncertainFastaIds.contains('seq_plasmid_hallmark') },
+                { assert uncertainFastaIds.contains('seq_host_genes') },
+                { assert uncertainFastaIds.contains('seq_plasmid_pred') },
+                { assert uncertainFastaIds.contains('seq_score_dash') },
+                { assert !uncertainFastaIds.contains('seq_confident') },
+                { assert !uncertainFastaIds.contains('seq_nonviral_conj') },
+                { assert !uncertainFastaIds.contains('seq_nonviral_dup') },
+                { assert !uncertainFastaIds.contains('seq_filtered') },
+
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("empty meta defaults") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             "${projectDir}/assets/test_datasets/fna/viruses.fna.gz",
+                             "${projectDir}/assets/test_datasets/tsv/virus_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/genes.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/quality_summary.tsv",
+                             "${projectDir}/assets/test_datasets/tsv/completeness.tsv",
+                             "${projectDir}/assets/test_datasets/csv/viralverify.csv" ]
+                input[1] = "${projectDir}/assets/test_datasets/txt/dtr_sequences.txt"
+                """
+            }
+        }
+
+        then {
+            def tsvText = gunzipText(process.out.tsv_gz[0][1])
+            def sourceDb = parseTsvColumn(tsvText, 'source_db')
+            def dbType = parseTsvColumn(tsvText, 'db_type')
+            def bodySite = parseTsvColumn(tsvText, 'body_site')
+
+            assertAll(
+                { assert process.success },
+                { assert sourceDb['seq_confident'] == 'no_source_db' },
+                { assert dbType['seq_confident'] == 'Unspecified' },
+                { assert bodySite['seq_confident'] == 'Other' }
+            )
+        }
+    }
+}

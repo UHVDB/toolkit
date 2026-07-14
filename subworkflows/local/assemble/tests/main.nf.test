@@ -1,0 +1,79 @@
+nextflow_workflow {
+
+    name "Test Subworkflow ASSEMBLE"
+    script "../main.nf"
+    workflow "ASSEMBLE"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/assemble"
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'test1', single_end:true ],
+                    file("${projectDir}/assets/test_datasets/fna/lambda.fna.gz", checkIfExists: true)
+                ])
+                input[1] = Channel.of(
+                    [
+                        [ id:'test1', single_end:false, group:'group1' ],
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973430.spring", checkIfExists: true)
+                    ],
+                    [
+                        [ id:'test2', single_end:false, group:'group1' ],
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973465.spring", checkIfExists: true)
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+
+    test("full test") {
+
+        config "./nextflow.config"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'test1', single_end:true ],
+                    file("${projectDir}/assets/test_datasets/fna/lambda.fna.gz", checkIfExists: true)
+                ])
+                input[1] = Channel.of(
+                    [
+                        [ id:'test1', single_end:false, group:'test', from_sra:true, source_db:'SPIRE' ],
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973430.spring", checkIfExists: true)
+                    ],
+                    [
+                        [ id:'test2', single_end:false, group:'test', from_sra:true, source_db:'SPIRE' ],
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973465.spring", checkIfExists: true)
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(
+                    workflow.out.assembly_fna_gz,
+                    file(workflow.out.spring[0][1]).name
+                ).match() }
+            )
+        }
+    }
+}

@@ -71,7 +71,6 @@ process VCLUST_CSVTK_SEQKIT {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    echo "" | gzip >  ${prefix}.gani.tsv.gz
-    echo "" | gzip >  ${prefix}.lzani.tsv.gz
+    echo "" | gzip > ${prefix}.reps.fna.gz
     """
 }

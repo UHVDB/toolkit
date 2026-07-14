@@ -34,6 +34,11 @@ def parse_args(args=None):
         help="Path to quality_summary.tsv file output by CheckV.",
     )
     parser.add_argument(
+        "-c",
+        "--completeness",
+        help="Path to completeness.tsv file output by CheckV.",
+    )
+    parser.add_argument(
         "-r",
         "--viralverify",
         help="Path to CSV file output by viralverify.",
@@ -49,9 +54,14 @@ def parse_args(args=None):
         help="Output TSV file containing combined data and UHVDB virus classification/confidence.",
     )
     parser.add_argument(
-        "-of",
-        "--output_fasta",
-        help="Output FASTA file containing sequences classified uncertain or confident.",
+        "-ocf",
+        "--output_confident_fasta",
+        help="Output FASTA file containing sequences classified as confident.",
+    )
+    parser.add_argument(
+        "-ouf",
+        "--output_uncertain_fasta",
+        help="Output FASTA file containing sequences classified as uncertain.",
     )
     parser.add_argument(
         "-oc",
@@ -104,6 +114,31 @@ def extract_family(value):
     return ""
 
 
+def genomad_prefilter_expr():
+    """Replicate geNomad csvtk filter from modules.config."""
+    taxonomy = pl.col('taxonomy').fill_null('')
+    length = pl.col('length').cast(pl.Float64)
+    virus_score = pl.col('virus_score').cast(pl.Float64)
+
+    return (
+        (
+            ((virus_score >= 0.7) & (length >= 2000)) |
+            taxonomy.str.contains('Inoviridae')
+        ) &
+        ~((taxonomy.str.contains('Caudoviricetes')) & (length < 10000)) &
+        ~((taxonomy.str.contains('Inoviridae')) & ((length < 4500) | (length > 12500))) &
+        (taxonomy != 'Unclassified') &
+        (taxonomy.str.contains('viricetes') | taxonomy.str.contains('Anelloviridae'))
+    )
+
+
+def checkv_prefilter_expr():
+    """Replicate CheckV csvtk filter from modules.config."""
+    return (
+        (pl.col('aai_completeness') >= 50) &
+        (pl.col('kmer_freq') <= 1.2) &
+        (pl.col('contig_length') / pl.col('aai_expected_length') <= 1.5)
+    )
 def main(args=None):
     args = parse_args(args)
 
@@ -118,14 +153,14 @@ def main(args=None):
 
     # load files
     virus_summary = pl.read_csv(
-        args.virus_summary, separator='\t',
+        args.virus_summary, separator='\t', null_values=['NA'],
         columns=[
-            "seq_name", "topology", "coordinates", "n_genes", "genetic_code",
+            "seq_name", "length", "topology", "coordinates", "n_genes", "genetic_code",
             "virus_score", "fdr", "n_hallmarks", "marker_enrichment", "taxonomy"
         ]
     )
     genomad_genes = pl.read_csv(
-        args.genes, separator='\t', ignore_errors=True,
+        args.genes, separator='\t', ignore_errors=True, null_values=['NA'],
         columns=[
             "gene", "annotation_accessions", "plasmid_hallmark", "taxname", "marker"
         ]
@@ -154,6 +189,17 @@ def main(args=None):
                 .otherwise(pl.col('completeness_method'))
                 .alias('completeness_method')
         ])
+    )
+    completeness = pl.read_csv(
+        args.completeness, separator='\t', ignore_errors=True, null_values=['NA'],
+        schema_overrides={
+            'aai_completeness': pl.Float64,
+            'aai_expected_length': pl.Float64,
+            'contig_length': pl.Float64,
+        },
+        columns=[
+            'contig_id', 'contig_length', 'aai_expected_length', 'aai_completeness'
+        ]
     )
     viralverify = pl.read_csv(
         args.viralverify, separator=',', ignore_errors=True,
@@ -223,6 +269,13 @@ def main(args=None):
             ])
             .join(genomad_nonviral_gene_counts, on='genome', how='left')
             .join(quality_summary, left_on='seq_name', right_on='contig_id', how='left')
+            .join(
+                completeness.select(['contig_id', 'aai_completeness', 'aai_expected_length']),
+                left_on='seq_name',
+                right_on='contig_id',
+                how='left',
+                suffix='_completeness'
+            )
             .join(viralverify, left_on='seq_name', right_on='Contig name', how='left')
             .with_columns([
                 pl.col('taxonomy').map_elements(extract_family, return_dtype=pl.String).alias('ictv_family'),
@@ -233,6 +286,8 @@ def main(args=None):
     # assign points to each sequence based on UHVDB criteria
     joined_w_scores = (
         joined
+            .filter(genomad_prefilter_expr())
+            .filter(checkv_prefilter_expr())
             .filter((~pl.col('warnings').str.contains('>1 viral region')) | (pl.col('warnings').is_null()))
             # assign points based on various criteria
             .with_columns([
@@ -314,10 +369,14 @@ def main(args=None):
     # write tsv output
     joined_w_scores.write_csv(args.output_tsv, separator='\t')
 
-    # extract sequences classified as uncertain or confident
-    uncertain_confident = set(
+    confident_seqs_set = set(
         joined_w_scores
-            .filter(pl.col('uhvdb_virus_classification').is_in(['uncertain', 'confident']))
+            .filter(pl.col('uhvdb_virus_classification') == 'confident')
+            ['seq_name']
+    )
+    uncertain_seqs_set = set(
+        joined_w_scores
+            .filter(pl.col('uhvdb_virus_classification') == 'uncertain')
             ['seq_name']
     )
     complete_seqs_set = set(
@@ -328,8 +387,8 @@ def main(args=None):
             ['seq_name']
     )
 
-    # write output FASTA file
-    viral_seqs = []
+    confident_seqs = []
+    uncertain_seqs = []
     complete_seqs = []
     already_added = set()
 
@@ -343,12 +402,15 @@ def main(args=None):
                 continue
             if record.id in complete_seqs_set:
                 complete_seqs.append(record)
-            if record.id in uncertain_confident:
-                viral_seqs.append(record)
-                
+            if record.id in confident_seqs_set:
+                confident_seqs.append(record)
+            if record.id in uncertain_seqs_set:
+                uncertain_seqs.append(record)
+
             already_added.add(record.id)
 
-    SeqIO.write(viral_seqs, args.output_fasta, "fasta")
+    SeqIO.write(confident_seqs, args.output_confident_fasta, "fasta")
+    SeqIO.write(uncertain_seqs, args.output_uncertain_fasta, "fasta")
     SeqIO.write(complete_seqs, args.output_complete_fasta, "fasta")
 
 if __name__ == "__main__":

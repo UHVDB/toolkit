@@ -83,7 +83,7 @@ process XSRA_FASTP_DEACON_SPRING {
         --output-file ${prefix}.spring
 
     ### Cleanup to save disk
-    rm -rf ${prefix}*deacon*.fastq.gz *.fastp.html *.fastp.json ${acc}/
+    rm -rf *deacon*.fastq.gz *.fastp.html *.fastp.json ${acc}/
     """
 
     stub:

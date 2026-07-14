@@ -17,7 +17,6 @@ process SPRING_MEGAHIT {
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ""
     def spring_out      = meta.single_end ? "${prefix}.fastq.gz" : "${prefix}_R1.fastq.gz ${prefix}_R2.fastq.gz"
     def megahit_reads   = meta.single_end ? "-r ${prefix}.fastq.gz" : "-1 ${prefix}_R1.fastq.gz -2 ${prefix}_R2.fastq.gz"
     """
@@ -32,7 +31,7 @@ process SPRING_MEGAHIT {
     ### Megahit assembly
     megahit \\
         -t ${task.cpus} \\
-        ${args} \\
+        --min-contig-len ${params.min_seq_length} \\
         ${megahit_reads} \\
         --out-prefix ${prefix}
 
@@ -41,5 +40,11 @@ process SPRING_MEGAHIT {
 
     ### Cleanup
     rm -rf megahit_out/ *.fastq.gz
+    """
+
+    stub:
+    prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.contigs.fna.gz
     """
 }

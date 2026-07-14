@@ -1,0 +1,77 @@
+nextflow_process {
+
+    name "Test Process XSRA_FASTP_DEACON_SPRING"
+    script "../main.nf"
+    process "XSRA_FASTP_DEACON_SPRING"
+
+    tag "modules"
+    tag "modules_local"
+    tag "xsra_fastp_deacon_spring"
+
+    test("SRR33973430 - paired - lambda.idx") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ], 'SRR33973430' ]
+                input[1] = file("${projectDir}/assets/test_datasets/idx/lambda.idx")
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(
+                    file(process.out.spring[0][1]).name,
+                    process.out.read_count
+                    ).match()
+                }
+            )
+        }
+    }
+
+    test("SRR23602565 - single - lambda.idx") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ], 'SRR23602565' ]
+                input[1] = file("${projectDir}/assets/test_datasets/idx/lambda.idx")
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(
+                    file(process.out.spring[0][1]).name,
+                    process.out.read_count
+                    ).match()
+                }
+            )
+        }
+    }
+
+    test("SRR33973430 - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ], 'SRR33973430' ]
+                input[1] = file("${projectDir}/assets/test_datasets/idx/lambda.idx")
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

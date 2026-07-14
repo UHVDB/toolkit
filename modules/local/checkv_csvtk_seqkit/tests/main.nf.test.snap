@@ -1,0 +1,188 @@
+{
+    "lambda - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_viruses.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_quality_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "2": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "checkv",
+                        "1.0.3"
+                    ]
+                ],
+                "3": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_viruses.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_quality_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "versions_checkv": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "checkv",
+                        "1.0.3"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-08T10:21:09.99807453",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "lambda": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_viruses.fna.gz:md5,0683cc2f040c79b8e8b22fd245a08456"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_quality_summary.tsv.gz:md5,e8aea7ed602b1c29310bcd3614c5d203"
+                    ]
+                ],
+                "2": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "checkv",
+                        "1.0.3"
+                    ]
+                ],
+                "3": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_viruses.fna.gz:md5,0683cc2f040c79b8e8b22fd245a08456"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_quality_summary.tsv.gz:md5,e8aea7ed602b1c29310bcd3614c5d203"
+                    ]
+                ],
+                "versions_checkv": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "checkv",
+                        "1.0.3"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "CHECKV_SEQKIT_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-08T10:51:32.652012808",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    }
+}

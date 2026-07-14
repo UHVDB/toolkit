@@ -1,0 +1,55 @@
+nextflow_process {
+
+    name "Test Process FIND_CONCATENATEHEADERS"
+    script "../main.nf"
+    process "FIND_CONCATENATEHEADERS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "find"
+    tag "find/concatenateheaders"
+
+    test("concatenate tsv - integration") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             [ file("${params.local_testdata_base_path}/tsv/classify.tsv"),
+                               file("${params.local_testdata_base_path}/tsv/completeness.tsv") ] ]
+                input[1] = 1
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+
+    test("concatenate tsv - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             [ file("${params.local_testdata_base_path}/tsv/classify.tsv"),
+                               file("${params.local_testdata_base_path}/tsv/completeness.tsv") ] ]
+                input[1] = 1
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

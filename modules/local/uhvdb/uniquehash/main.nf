@@ -42,4 +42,12 @@ process UHVDB_UNIQUEHASH {
     ### Cleanup
     rm -rf combined_seqhasher.tsv.gz
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > uhvdb_seqhasher.tsv.gz
+    echo "" | gzip > uhvdb_id_map.tsv.gz
+    echo "" | gzip > ${prefix}.fna.gz
+    """
 }

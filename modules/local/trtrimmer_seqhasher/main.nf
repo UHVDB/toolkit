@@ -38,4 +38,10 @@ process TRTRIMMER_SEQHASHER {
     ### Cleanup
     rm -rf ${prefix}.trtrimmer.fna
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.seqhasher.tsv.gz
+    """
 }

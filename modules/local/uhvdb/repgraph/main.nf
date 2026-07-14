@@ -1,6 +1,6 @@
 process UHVDB_REPGRAPH {
     tag "${meta.id}"
-    label 'process_low'
+    label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -23,7 +23,7 @@ process UHVDB_REPGRAPH {
     zgrep "^>" ${new_fna_gz} | sed 's/^>//' > ${prefix}.ids.txt
     zgrep "^>" ${old_fna_gz} | sed 's/^>//' >> ${prefix}.ids.txt
 
-    ### Extract subgraph of GANI graph that includes only the sequences in the current cluster
+    ### Extract subgraph of GANI graph that includes only sequences in the fasta files
     uhvdb_repgraph.py \\
         --input_ids ${prefix}.ids.txt \\
         --input_graph ${gani_gz} \\
@@ -34,5 +34,11 @@ process UHVDB_REPGRAPH {
 
     ### Cleanup
     rm ${prefix}.ids.txt
+    """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.gani.tsv.gz
     """
 }

@@ -5,7 +5,7 @@ nextflow_process {
     process "SEQKIT_SPLIT2"
 
     tag "modules"
-    tag "modules_nfcore"
+    tag "modules_local"
     tag "gunzip"
     tag "seqkit"
     tag "seqkit/split2"
@@ -224,23 +224,12 @@ nextflow_process {
 
         config "./length.config"
 
-        setup {
-            run("GUNZIP") {
-                script "../../../gunzip/main.nf"
-                process {
-                    """
-                    input[0] = [ [ id:'test', single_end:true ], // meta map
-                                 [ file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/fastq/test_1.fastq.gz', checkIfExists: true) ]
-                         ]
-                    """
-                }
-            }
-        }
-
         when {
             process {
                 """
-                input[0] = GUNZIP.out.gunzip
+                input[0] = [ [ id:'test', single_end:true ],
+                             [ file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/fasta/contigs.fasta', checkIfExists: true) ]
+                     ]
                 """
             }
         }

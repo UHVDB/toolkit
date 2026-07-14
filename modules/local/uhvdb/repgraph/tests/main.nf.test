@@ -1,0 +1,57 @@
+nextflow_process {
+
+    name "Test Process UHVDB_REPGRAPH"
+    script "../main.nf"
+    process "UHVDB_REPGRAPH"
+
+    tag "modules"
+    tag "modules_local"
+    tag "uhvdb"
+    tag "uhvdb/repgraph"
+
+    test("repgraph - integration") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/tsv/gani_graph_nohdr.tsv.gz") ]
+                input[1] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz"),
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+
+    test("repgraph - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/tsv/gani_graph_nohdr.tsv.gz") ]
+                input[1] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz"),
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

@@ -41,4 +41,10 @@ process SPRING_SYLPH {
     ### Cleanup
     rm -rf *.fastq.gz
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    touch ${prefix}.profile.tsv
+    """
 }

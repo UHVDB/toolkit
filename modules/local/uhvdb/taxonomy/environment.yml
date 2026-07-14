@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- conda-forge::fastexcel=0.19.0
+- conda-forge::polars=1.38.1

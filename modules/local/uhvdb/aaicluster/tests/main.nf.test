@@ -1,0 +1,71 @@
+nextflow_process {
+
+    name "Test Process UHVDB_AAICLUSTER"
+    script "../main.nf"
+    process "UHVDB_AAICLUSTER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "uhvdb"
+    tag "uhvdb/aaicluster"
+
+    test("aaicluster - integration") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                input[1] = [ [ id:'old' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                input[2] = [ [ id:'family' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_family.mcl.gz") ]
+                input[3] = [ [ id:'subfamily' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_subfamily.mcl.gz") ]
+                input[4] = [ [ id:'genus' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_genus.mcl.gz") ]
+                input[5] = [ [ id:'subgenus' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_subgenus.mcl.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+
+    test("aaicluster - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                input[1] = [ [ id:'old' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                input[2] = [ [ id:'family' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_family.mcl.gz") ]
+                input[3] = [ [ id:'subfamily' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_subfamily.mcl.gz") ]
+                input[4] = [ [ id:'genus' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_genus.mcl.gz") ]
+                input[5] = [ [ id:'subgenus' ],
+                             file("${params.local_testdata_base_path}/tsv/mcl_subgenus.mcl.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

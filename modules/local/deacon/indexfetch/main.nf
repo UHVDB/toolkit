@@ -1,4 +1,5 @@
 process DEACON_INDEXFETCH {
+    tag "${index_name}"
     label 'process_low'
 
     conda "${moduleDir}/environment.yml"

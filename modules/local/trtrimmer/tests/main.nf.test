@@ -1,0 +1,53 @@
+nextflow_process {
+
+    name "Test Process TRTRIMMER"
+    script "../main.nf"
+    process "TRTRIMMER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "trtrimmer"
+
+    test("viruses - integration") {
+
+        config "./trtrimmer.config"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+
+    test("viruses - stub") {
+
+        options "-stub"
+        config "./trtrimmer.config"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

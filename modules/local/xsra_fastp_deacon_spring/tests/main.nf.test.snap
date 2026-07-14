@@ -1,0 +1,152 @@
+{
+    "SRR33973430 - paired - lambda.idx": {
+        "content": [
+            "test.spring",
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": true
+                    },
+                    [
+                        "test.read1:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "test.read2:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ]
+            ]
+        ],
+        "timestamp": "2026-06-26T16:40:11.261214732",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "SRR33973430 - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        [
+                            "test.read1:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test.read2:md5,d41d8cd98f00b204e9800998ecf8427e"
+                        ]
+                    ]
+                ],
+                "2": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "xsra",
+                        "0.2.28"
+                    ]
+                ],
+                "3": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "4": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "5": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ],
+                "read_count": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        [
+                            "test.read1:md5,d41d8cd98f00b204e9800998ecf8427e",
+                            "test.read2:md5,d41d8cd98f00b204e9800998ecf8427e"
+                        ]
+                    ]
+                ],
+                "spring": [
+                    [
+                        {
+                            "id": "test",
+                            "single_end": true
+                        },
+                        "test.spring:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_deacon": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "deacon",
+                        "0.13.2"
+                    ]
+                ],
+                "versions_fastp": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "fastp",
+                        "1.3.3"
+                    ]
+                ],
+                "versions_spring": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "spring",
+                        "1.1.1"
+                    ]
+                ],
+                "versions_xsra": [
+                    [
+                        "XSRA_FASTP_DEACON_SPRING",
+                        "xsra",
+                        "0.2.28"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-26T16:19:49.116151208",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "SRR23602565 - single - lambda.idx": {
+        "content": [
+            "test.spring",
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": true
+                    },
+                    "test.read1:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ]
+            ]
+        ],
+        "timestamp": "2026-06-26T16:40:26.877411365",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    }
+}

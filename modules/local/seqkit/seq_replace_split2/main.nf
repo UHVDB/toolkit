@@ -19,29 +19,30 @@ process SEQKIT_SEQ_REPLACE_SPLIT2 {
 
     script:
     prefix      = task.ext.prefix   ?: "${meta.id}"
-    def args    = task.ext.args     ?: ''
-    def args2   = task.ext.args2    ?: ''
-    def args3   = task.ext.args3    ?: ''
-    
     """
     seqkit \\
         seq \\
-        $args \\
+        --remove-gaps \\
+        --upper-case \\
+        --validate-seq \\
+        --min-len ${params.min_seq_length} \\
         --threads $task.cpus \\
         $fastx \\
     | seqkit \\
         replace \\
-        $args2 \\
+        --pattern '^' \\
+        --replacement ${prefix}_ \\
     | seqkit split2 \\
-        $args3 \\
+        --by-size ${params.database_split_size} \\
         --threads $task.cpus \\
-        --out-dir ${prefix}
+        --out-dir ${prefix} \\
+        -e .gz
     """
 
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir -p ${prefix}
-    echo "" | gzip > ${prefix}/${fastx}
+    echo "" | gzip > ${prefix}/${prefix}.fna.gz
     """
 }

@@ -1,0 +1,32 @@
+nextflow_process {
+
+    name "Test Process SPRING_SYLPH"
+    script "../main.nf"
+    process "SPRING_SYLPH"
+
+    tag "modules"
+    tag "modules_local"
+    tag "spring_sylph"
+
+    test("single_end - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ],
+                             file("${projectDir}/assets/test_datasets/nf-test/spring/test.spring") ]
+                input[1] = file("${projectDir}/assets/test_datasets/nf-test/sylph/test.syldb")
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

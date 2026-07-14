@@ -1,0 +1,9 @@
+hannels:
+  - conda-forge
+  - defaults
+dependencies:
+  - conda-forge::python=3.10
+  - conda-forge::pandas=2.2.2
+  - conda-forge::openpyxl=3.1.2
+  - conda-forge::requests=2.32.3
+  - conda-forge::rich=13.7.1

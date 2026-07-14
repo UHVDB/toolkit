@@ -63,4 +63,12 @@ process UHVDB_ANIREPS {
     rm ${prefix}.new_reps.tsv
     rm ${prefix}.all_ids.txt
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.info.tsv.gz
+    echo "" | gzip > ${prefix}.new_reps.fna.gz
+    echo "" | gzip > ${prefix}.old_reps.fna.gz
+    """
 }

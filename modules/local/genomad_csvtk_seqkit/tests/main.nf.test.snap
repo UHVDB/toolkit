@@ -1,0 +1,204 @@
+{
+    "lambda - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_genes.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "3": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "5": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "genes_tsv_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_genes.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_genomad": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-07T17:27:57.473950665",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "lambda": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus.fna.gz:md5,66193122777ceb85ea82c579acdb7a94"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_summary.tsv.gz:md5,33f87928bdc308923269dce524a716ff"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_genes.tsv.gz:md5,501bad47a7ff2c1f836e992ea9308631"
+                    ]
+                ],
+                "3": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "5": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus.fna.gz:md5,66193122777ceb85ea82c579acdb7a94"
+                    ]
+                ],
+                "genes_tsv_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_genes.tsv.gz:md5,501bad47a7ff2c1f836e992ea9308631"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test_virus_summary.tsv.gz:md5,33f87928bdc308923269dce524a716ff"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_genomad": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-07T17:24:05.562466009",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    }
+}

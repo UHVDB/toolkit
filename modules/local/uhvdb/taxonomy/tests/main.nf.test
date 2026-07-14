@@ -1,0 +1,37 @@
+nextflow_process {
+
+    name "Test Process UHVDB_TAXONOMY"
+    script "../main.nf"
+    process "UHVDB_TAXONOMY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "uhvdb"
+    tag "uhvdb/taxonomy"
+    tag "orphan"
+
+    test("taxonomy - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/tsv/normscore.tsv.gz") ]
+                input[1] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/tsv/classify_uhvdb.tsv.gz") ]
+                input[2] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/stub/vmr.xlsx") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

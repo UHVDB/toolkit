@@ -34,4 +34,10 @@ process MCL {
     ### Cleanup
     rm ${prefix}.txt
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    echo "" | gzip > ${prefix}.mcl.gz
+    """
 }

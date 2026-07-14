@@ -1,0 +1,38 @@
+nextflow_workflow {
+
+    name "Test Subworkflow AAICLUSTER"
+    script "../main.nf"
+    workflow "AAICLUSTER"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/aaicluster"
+
+    test("species reps - stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'new_species_reps' ],
+                    file("${params.local_testdata_base_path}/fasta/uhvdb_new_reps.fna.gz")
+                ])
+                input[1] = Channel.of([
+                    [ id:'old_species_reps' ],
+                    file("${params.local_testdata_base_path}/fasta/uhvdb_old_reps.fna.gz")
+                ])
+                input[2] = Channel.value(file("${params.local_testdata_base_path}/tsv/normscore.tsv.gz"))
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+}

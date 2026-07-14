@@ -1,0 +1,70 @@
+nextflow_process {
+
+    name "Test Process UHVDB_DOWNLOAD"
+    script "../main.nf"
+    process "UHVDB_DOWNLOAD"
+
+    tag "modules"
+    tag "modules_local"
+    tag "uhvdb"
+    tag "uhvdb/download"
+
+    test("download - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = params.uhvdb_s3
+                input[1] = params.uhvdb_zenodo
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("download - s3") {
+
+        when {
+            process {
+                """
+                input[0] = 'https://s3.kopah.uw.edu/uhvdb/test/'
+                input[1] = 'https://zenodo.org/api/records/20941483/files-archive'
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("download - zenodo fallback") {
+
+        when {
+            process {
+                """
+                input[0] = 'https://s3.kopah.uw.edu/uhvdb/nonexistent/'
+                input[1] = 'https://zenodo.org/api/records/20941483/files-archive'
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

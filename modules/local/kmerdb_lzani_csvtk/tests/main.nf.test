@@ -1,0 +1,33 @@
+nextflow_process {
+
+    name "Test Process KMERDB_LZANI_CSVTK"
+    script "../main.nf"
+    process "KMERDB_LZANI_CSVTK"
+
+    tag "modules"
+    tag "modules_local"
+    tag "kmerdb_lzani_csvtk"
+
+    test("viruses - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                input[1] = [ [ id:'ref' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

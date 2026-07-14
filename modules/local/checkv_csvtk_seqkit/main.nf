@@ -4,8 +4,8 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
 
     conda ( "${moduleDir}/environment.yml" )
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/8c/8c6aec9a6aa3550e56eea135dd9923e85c47e2d64ba7a947d21336efad7bf65e/data'
-        : 'community.wave.seqera.io/library/checkv_seqkit_csvtk:2cdd52311c7ea5ff'}"
+        ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/28/28eabc86416e0874850bad86e386b611379a17a0178d9fa0a3ef7a83f2028b74/data'
+        : 'community.wave.seqera.io/library/checkv_seqkit_csvtk_gzip:a47597e639eb5a1e'}"
 
     input:
     tuple val(meta), path(fasta)
@@ -14,6 +14,7 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
     output:
     tuple val(meta), path("*_viruses.fna.gz")          , emit: fna_gz
     tuple val(meta), path("*_quality_summary.tsv.gz")  , emit: summary_tsv_gz
+    tuple val(meta), path("*_completeness.tsv.gz")     , emit: completeness_tsv_gz
     tuple val("${task.process}"), val("checkv"), eval("checkv -h 2>&1 | sed '1!d;s/^.*CheckV v//;s/:.*//'"), topic: versions, emit: versions_checkv
     tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed 's/^.*v//'"), emit: versions_seqkit, topic: versions
     tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), emit: versions_csvtk, topic: versions
@@ -33,6 +34,7 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
         ${prefix}
 
     gzip -c ${prefix}/quality_summary.tsv > ${prefix}_quality_summary.tsv.gz
+    gzip -c ${prefix}/completeness.tsv > ${prefix}_completeness.tsv.gz
 
     ### Fix provirus headers
     seqkit replace \\
@@ -59,7 +61,7 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
 
     ### Cleanup
     rm -rf ${prefix} ${prefix}_proviruses_fix.fna ${prefix}/ ${prefix}.viruses.fna \\
-        ${prefix}_completeness.tsv.gz ${prefix}_contamination.tsv.gz ${prefix}_complete_genomes.tsv.gz \\
+        ${prefix}_contamination.tsv.gz ${prefix}_complete_genomes.tsv.gz \\
         ${prefix}_filtered_checkv.txt
     """
 
@@ -68,5 +70,6 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
     """
     echo "" | gzip > ${prefix}_viruses.fna.gz
     echo "" | gzip > ${prefix}_quality_summary.tsv.gz
+    echo "" | gzip > ${prefix}_completeness.tsv.gz
     """
 }

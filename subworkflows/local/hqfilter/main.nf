@@ -1,13 +1,13 @@
 include { rmEmptyFastAs; rmEmptyTsvs; add_split; extractDigitBeforeExtension } from '../functions/main'
 include { TRTRIMMER                             } from '../../../modules/local/trtrimmer/main'
 include { FIND_CONCATENATE                      } from '../../../modules/nf-core/find/concatenate/main'
-include { FASTA_VCLUST_PREFILTER_ALIGN_CLUSTER  } from '../../../subworkflows/nf-core/fasta_vclust_prefilter_align_cluster/main'
+include { VCLUST_CSVTK_SEQKIT                   } from '../../../modules/local/vclust_csvtk_seqkit/main'
 include { CSVTK_SEQKIT                          } from '../../../modules/local/csvtk_seqkit/main'
 include { KMERDB_LZANI_CSVTK_SEQKIT             } from '../../../modules/local/kmerdb_lzani_csvtk_seqkit/main'
 include { CHECKV_UPDATEDATABASE                 } from '../../../modules/nf-core/checkv/updatedatabase/main'
 include { CHECKV_COMPLETENESS                   } from '../../../modules/local/checkv/completeness/main'
 include { UHVDB_HQFILTER                        } from '../../../modules/local/uhvdb/hqfilter/main'
-include { FIND_CONCATENATEHEADERS          } from '../../../modules/local/find/concatenateheaders/main'
+include { FIND_CONCATENATEHEADERS               } from '../../../modules/local/find/concatenateheaders/main'
 
 workflow HQFILTER {
     take:
@@ -43,28 +43,16 @@ workflow HQFILTER {
     //
     // SUBWORKFLOW: Cluster complete viruses for update
     //
-    FASTA_VCLUST_PREFILTER_ALIGN_CLUSTER(
-        ch_vclust_input,
-        false,
-        'ani',
-        [],
-        [],
-        0.95
-    )
-
-    //
-    // MODULE: Extract representative sequence IDs from vclust output
-    //
-    CSVTK_SEQKIT(
-        FASTA_VCLUST_PREFILTER_ALIGN_CLUSTER.out.clusters.join(FASTA_VCLUST_PREFILTER_ALIGN_CLUSTER.out.fasta)
+    VCLUST_CSVTK_SEQKIT(
+        ch_vclust_input
     )
 
     //
     // MODULE: Align complete reps to CheckV database and extract novel sequences
     //
     KMERDB_LZANI_CSVTK_SEQKIT(
-        CSVTK_SEQKIT.out.fna_gz,
-        checkv_db.map { db -> [ [ id: 'checkv_reps' ], file("${db}/genome_db/checkv_reps.fna") ] }.collect()
+        VCLUST_CSVTK_SEQKIT.out.fna_gz,
+        checkv_db.map { db -> [ [ id: 'checkv_reps' ], db.resolve('genome_db/checkv_reps.fna') ] }
     )
 
     //

@@ -1,0 +1,23 @@
+nextflow_process {
+
+    name "Test Process ICTV_DOWNLOADER"
+    script "../main.nf"
+    process "ICTV_DOWNLOADER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "ictv"
+    tag "ictv/downloader"
+
+    test("downloader - stub") {
+
+        options "-stub"
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

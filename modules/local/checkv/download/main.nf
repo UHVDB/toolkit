@@ -6,6 +6,10 @@ process CHECKV_DOWNLOAD {
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/3b/3b54fa9135194c72a18d00db6b399c03248103f87e43ca75e4b50d61179994b3/data'
         : 'community.wave.seqera.io/library/wget:1.21.4--8b0fcde81c17be5e'}"
 
+    input:
+    val checkv_s3
+    val checkv_zenodo
+
     output:
     path "checkv_db", emit: checkv_db
     // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
@@ -14,18 +18,33 @@ process CHECKV_DOWNLOAD {
     task.ext.when == null || task.ext.when
 
     script:
-    """
-    ### Download database
-    wget https://s3.kopah.uw.edu/uhvdb-checkv/v5/checkv_db.tar.gz -O checkv_db.tar.gz
+    if ( task.attempt == 1 ) {
+        """
+        ### Download database
+        wget ${checkv_s3}checkv_db.tar.gz
 
-    ### Extract database
-    mkdir -p checkv_db
-    tar -xvf checkv_db.tar.gz -C checkv_db --strip-components=12
+        ### Extract database
+        mkdir -p checkv_db tmp
+        tar -xvf checkv_db.tar.gz -C ./tmp
+        mv tmp/*/*/ checkv_db/
 
-    ### Cleanup
-    rm checkv_db.tar.gz
-    """
+        ### Cleanup
+        rm checkv_db.tar.gz
+        """
+    } else {
+        """
+        ### Download UHVDB files
+        wget ${checkv_zenodo} -O checkv_db.tar.gz
 
+        ### Extract UHVDB files
+        mkdir -p checkv_db tmp
+        tar -xvf checkv_db.tar.gz -C ./tmp
+        mv tmp/*/*/ checkv_db/
+
+        ### Cleanup
+        rm checkv_db.tar.gz
+        """
+    }
     stub:
     """
     ### Touch empty database files

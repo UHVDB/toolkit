@@ -1,0 +1,36 @@
+nextflow_workflow {
+
+    name "Test Subworkflow REFERENCEANALYZE"
+    script "../main.nf"
+    workflow "REFERENCEANALYZE"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/referenceanalyze"
+
+    test("spring - stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:true ],
+                    file("${projectDir}/assets/test_datasets/nf-test/spring/test.spring")
+                ])
+                input[1] = Channel.value(file("${params.local_testdata_base_path}/fasta/uhvdb_old_reps.fna.gz"))
+                input[2] = Channel.value(file("${params.local_testdata_base_path}/tsv/uhvdb_metadata.tsv.gz"))
+                input[3] = Channel.value(file("${params.local_testdata_base_path}/tsv/sylph_tax.tsv.gz"))
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+}

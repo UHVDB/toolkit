@@ -1,0 +1,228 @@
+{
+    "lambda - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_genes.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "3": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "5": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus.fna.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "genes_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_genes.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_summary.tsv.gz:md5,68b329da9893e34099c7d8ad5cb9c940"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_genomad": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-08T10:05:17.563358157",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    },
+    "lambda": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus.fna.gz:md5,efabfed805fada243e43cc129444be8a"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_summary.tsv.gz:md5,23d00e3c2e94ee33688fd3cdcc31b4ee"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_genes.tsv.gz:md5,953b055043414860a1957ae1789ce316"
+                    ]
+                ],
+                "3": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "4": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ],
+                "5": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "fna_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus.fna.gz:md5,efabfed805fada243e43cc129444be8a"
+                    ]
+                ],
+                "genes_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_genes.tsv.gz:md5,953b055043414860a1957ae1789ce316"
+                    ]
+                ],
+                "summary_tsv_gz": [
+                    [
+                        {
+                            "id": "test_batch_0",
+                            "source_db": "test_db",
+                            "body_site": "Gut"
+                        },
+                        "test_batch_0_virus_summary.tsv.gz:md5,23d00e3c2e94ee33688fd3cdcc31b4ee"
+                    ]
+                ],
+                "versions_csvtk": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "csvtk",
+                        "0.37.0"
+                    ]
+                ],
+                "versions_genomad": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "genomad",
+                        "1.12.0"
+                    ]
+                ],
+                "versions_seqkit": [
+                    [
+                        "SEQKIT_GENOMAD_CSVTK_SEQKIT",
+                        "seqkit",
+                        "2.13.0"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-07-08T10:04:08.973270426",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.1"
+        }
+    }
+}

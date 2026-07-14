@@ -1,0 +1,50 @@
+nextflow_process {
+
+    name "Test Process PYRODIGALGV"
+    script "../main.nf"
+    process "PYRODIGALGV"
+
+    tag "modules"
+    tag "modules_local"
+    tag "pyrodigalgv"
+
+    test("viruses - integration") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+
+    test("viruses - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file("${params.local_testdata_base_path}/fasta/viruses.fna.gz") ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out.findAll { key, val -> key.startsWith('versions') == false }).match() }
+            )
+        }
+    }
+}

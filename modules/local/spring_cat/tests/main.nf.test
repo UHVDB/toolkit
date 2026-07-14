@@ -1,0 +1,59 @@
+nextflow_process {
+
+    name "Test Process SPRING_CAT"
+    script "../main.nf"
+    process "SPRING_CAT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "spring"
+    tag "spring_cat"
+
+    test("SRR33973430 - SRR33973465 - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ],
+                    [
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973430.spring", checkIfExists: true),
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973465.spring", checkIfExists: true)
+                    ]
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+
+    test("SRR33973430 - SRR33973465") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id:'test', single_end:true ],
+                    [
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973430.spring", checkIfExists: true),
+                        file("${projectDir}/assets/test_datasets/spring/SRR33973465.spring", checkIfExists: true)
+                    ]
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(file(process.out.spring[0][1]).name).match() }
+            )
+        }
+    }
+}
