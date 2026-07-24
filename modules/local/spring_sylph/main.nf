@@ -17,7 +17,6 @@ process SPRING_SYLPH {
     tuple val("${task.process}"), val('sylph'), eval('sylph -V | sed "s/sylph //g"'), topic: versions, emit: versions_sylph
 
     script:
-    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def spring_out  = meta.single_end ? "${meta.id}.fastq.gz" : "${meta.id}_R1.fastq.gz ${meta.id}_R2.fastq.gz"
     def sylph_reads = meta.single_end ? "-r ${meta.id}.fastq.gz" : "-1 ${meta.id}_R1.fastq.gz -2 ${meta.id}_R2.fastq.gz"
@@ -33,7 +32,8 @@ process SPRING_SYLPH {
     ### run sylph profile
     sylph profile \\
         ${db} \\
-        ${args} \\
+        --min-number-kmers 3 \\
+        --estimate-unknown \\
         ${sylph_reads} \\
         -t ${task.cpus} \\
         --output-file ${prefix}.profile.tsv \\

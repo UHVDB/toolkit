@@ -51,8 +51,6 @@ process VCLUST_CSVTK_SEQKIT {
     csvtk cut \\
         ${prefix}.cluster.tsv \\
         --tabs \\
-        --out-tabs \\
-        --tabs \\
         --delete-header \\
         -f cluster --out-delimiter '\t' \\
         --out-file ${prefix}.cluster_reps.tsv.gz
@@ -64,7 +62,7 @@ process VCLUST_CSVTK_SEQKIT {
         --out-file ${prefix}.reps.fna.gz
 
     ### Cleanup
-    rm ${prefix}.prefilter.txt 
+    rm ${prefix}.prefilter.txt
     rm ${prefix}.ani.tsv
     rm ${prefix}.ani.ids.tsv
     rm ${prefix}.cluster.tsv

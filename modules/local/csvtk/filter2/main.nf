@@ -28,10 +28,11 @@ process CSVTK_FILTER2 {
         --num-cpus $task.cpus \\
         $args \\
         --out-file ${prefix}.${out_extension}
-        
+
     """
 
     stub:
+    def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: "${meta.id}"
     out_extension = args.contains('--out-delimiter "\t"') || args.contains('-D "\t"') || args.contains("-D \$'\t'") ? "tsv" : "csv"
     """

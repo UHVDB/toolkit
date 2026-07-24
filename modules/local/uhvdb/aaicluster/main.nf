@@ -23,10 +23,10 @@ process UHVDB_AAICLUSTER {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
-    
+
     """
     ### Combine new and old species reps ids
-    zcat ${new_fna_gz} ${old_fna_gz} | zgrep "^>" | sed 's/>//g; s/\s.*//' >> ${prefix}.all_ids.txt
+    zcat ${new_fna_gz} ${old_fna_gz} | grep "^>" | sed 's/>//g; s/\s.*//' >> ${prefix}.all_ids.txt
 
     ### Generate cluster assignments at each rank
     uhvdb_aaicluster.py \\
@@ -36,7 +36,7 @@ process UHVDB_AAICLUSTER {
         --genus ${genus_mcl} \\
         --subgenus ${subgenus_mcl} \\
         -o ${prefix}.tsv
-    
+
     ### Compress
     gzip ${prefix}.tsv
     """

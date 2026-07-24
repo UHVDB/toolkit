@@ -11,8 +11,8 @@ process SPRING_COVERM {
     tuple val(meta), path(spring), path(fna_gz)
 
     output:
-    tuple val(meta), path('*.depth.tsv'), emit: tsv_gz
-    tuple val(meta), path('*.bam')      , emit: bam, optional: true
+    tuple val(meta), path('*.depth.tsv.gz'), emit: tsv_gz
+    tuple val(meta), path('*.bam')         , emit: bam, optional: true
     tuple val("${task.process}"), val('coverm'), eval('coverm --version | sed "s/coverm //"'), emit: versions_coverm, topic: versions
     tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
     // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
@@ -21,7 +21,6 @@ process SPRING_COVERM {
     task.ext.when == null || task.ext.when
 
     script:
-    def args           = task.ext.args ?: ""
     def prefix         = task.ext.prefix ?: "${meta.id}"
     def spring_out     = meta.single_end ? "${meta.id}.fastq.gz" : "${meta.id}_R1.fastq.gz ${meta.id}_R2.fastq.gz"
     def coverm_reads   = meta.single_end ? "--single ${meta.id}.fastq.gz" : "--coupled ${meta.id}_R1.fastq.gz ${meta.id}_R2.fastq.gz"
@@ -41,16 +40,18 @@ process SPRING_COVERM {
         ${coverm_reads} \\
         --reference ${fna_gz} \\
         --bam-file-cache-directory _bam_cache/ \\
-        ${args} \\
+        --mapper strobealign \\
+        --methods trimmed_mean mean variance covered_bases length \\
         --output-file ${prefix}.depth.tsv
 
+    gzip ${prefix}.depth.tsv
     mv _bam_cache/*.bam . || true
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    touch ${prefix}.depth.tsv
+    echo "" | gzip > ${prefix}.depth.tsv.gz
     touch ${prefix}.bam
     """
 }

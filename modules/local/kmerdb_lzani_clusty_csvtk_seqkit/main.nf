@@ -1,4 +1,4 @@
-process KMERDB_LZANI_CSVTK_SEQKIT {
+process KMERDB_LZANI_CLUSTY_CSVTK_SEQKIT {
     tag "${meta.id}"
     label 'process_high'
 

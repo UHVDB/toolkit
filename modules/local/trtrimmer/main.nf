@@ -29,7 +29,7 @@ process TRTRIMMER {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.tr-trimmer"
     """
     echo "" | gzip > ${prefix}.fna.gz
     """
