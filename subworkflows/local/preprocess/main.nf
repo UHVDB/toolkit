@@ -14,9 +14,7 @@ workflow PREPROCESS {
     //
     // MODULE: Download deacon index
     //
-    DEACON_INDEXFETCH(
-        deacon_index_name
-    )
+    DEACON_INDEXFETCH()
     ch_deacon_idx = DEACON_INDEXFETCH.out.idx.first()
 
     //

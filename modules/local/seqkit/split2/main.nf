@@ -9,6 +9,7 @@ process SEQKIT_SPLIT2 {
 
     input:
     tuple val(meta), path(fastx)
+    val size
 
     output:
     tuple val(meta), path("${prefix}/*"), emit: fastx
@@ -18,7 +19,7 @@ process SEQKIT_SPLIT2 {
     task.ext.when == null || task.ext.when
 
     script:
-    def args   = task.ext.args   ?: ''
+    def args   = task.ext.args   ?: "--by-size ${size}"
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     seqkit \\

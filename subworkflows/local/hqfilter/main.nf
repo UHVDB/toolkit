@@ -55,40 +55,50 @@ workflow HQFILTER {
         checkv_db.map { db -> [ [ id: 'checkv_reps' ], db.resolve('genome_db/checkv_reps.fna') ] }
     )
 
-    // //
-    // // MODULE: Update CheckV with new sequences
-    // //
-    // CHECKV_UPDATEDATABASE(
-    //     KMERDB_LZANI_CSVTK_SEQKIT.out.fna_gz,
-    //     checkv_db
-    // )
-    // ch_checkv_db = CHECKV_UPDATEDATABASE.out.checkv_db.map { _meta, db -> db }.collect()
+    //
+    // MODULE: Update CheckV with new sequences
+    //
+    CHECKV_UPDATEDATABASE(
+        KMERDB_LZANI_CSVTK_SEQKIT.out.fna_gz,
+        checkv_db
+    )
+    ch_checkv_db = CHECKV_UPDATEDATABASE.out.checkv_db.map { _meta, db -> db }.collect()
 
-    // //
-    // // MODULE: Calculate completeness using updated database
-    // //
-    // CHECKV_COMPLETENESS(
-    //     virus_fna_gz,
-    //     ch_checkv_db
-    // )
+    //
+    // MODULE: Calculate completeness using updated database
+    //
+    CHECKV_COMPLETENESS(
+        rmEmptyFastAs(virus_fna_gz),
+        ch_checkv_db
+    )
 
-    // //
-    // // MODULE: Extract HQ sequences using new estimates
-    // //
-    // UHVDB_HQFILTER(
-    //     virus_fna_gz.join(classify_tsv_gz).join(CHECKV_COMPLETENESS.out.tsv_gz)
-    // )
+    //
+    // MODULE: Extract HQ sequences using new estimates
+    //
+    ch_classify_for_hqfilter = classify_tsv_gz
+        .flatMap { meta, tsv_gz ->
+            [
+                [ meta + [ confidence: 'confident' ], tsv_gz ],
+                [ meta + [ confidence: 'uncertain', id: "${meta.id}_uncertain" ], tsv_gz ]
+            ]
+        }
 
-    // //
-    // // MODULE: Combine HQ filter tsv file
-    // //
-    // FIND_CONCATENATEHEADERS(
-    //     CHECKV_COMPLETENESS.out.tsv_gz.map { _meta, tsv_gz -> [ tsv_gz ] }.collect().map { tsv_gzs -> [ [ id:'combined_hqfilter' ], tsv_gzs ] },
-    //     1
-    // )
+    UHVDB_HQFILTER(
+        virus_fna_gz
+            .join(ch_classify_for_hqfilter)
+            .join(CHECKV_COMPLETENESS.out.tsv_gz)
+    )
 
-    // emit:
-    // fna_gz = UHVDB_HQFILTER.out.fna_gz
-    // tsv_gz = CHECKV_COMPLETENESS.out.tsv_gz
-    // combined_tsv_gz = FIND_CONCATENATEHEADERS.out.file_out
+    //
+    // MODULE: Combine HQ filter tsv file
+    //
+    FIND_CONCATENATEHEADERS(
+        CHECKV_COMPLETENESS.out.tsv_gz.map { _meta, tsv_gz -> [ tsv_gz ] }.collect().map { tsv_gzs -> [ [ id:'combined_hqfilter' ], tsv_gzs ] },
+        1
+    )
+
+    emit:
+    fna_gz = UHVDB_HQFILTER.out.fna_gz
+    tsv_gz = CHECKV_COMPLETENESS.out.tsv_gz
+    combined_tsv_gz = FIND_CONCATENATEHEADERS.out.file_out
 }

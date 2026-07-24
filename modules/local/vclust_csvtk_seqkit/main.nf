@@ -18,10 +18,6 @@ process VCLUST_CSVTK_SEQKIT {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
-    def args3 = task.ext.args3 ?: ''
-    def args4 = task.ext.args4 ?: ''
     """
     ### Run vClust
     vclust \\
@@ -29,7 +25,8 @@ process VCLUST_CSVTK_SEQKIT {
         --in ${fna_gz} \\
         --out ${prefix}.prefilter.txt \\
         --threads ${task.cpus} \\
-        ${args}
+        --kmers-fraction 0.2 \\
+        --min-ident 0.95
 
     vclust \\
         align \\
@@ -37,21 +34,27 @@ process VCLUST_CSVTK_SEQKIT {
         --out ${prefix}.ani.tsv \\
         --filter ${prefix}.prefilter.txt \\
         --threads ${task.cpus} \\
-        ${args2}
+        --out-ani 0.95 \\
+        --out-qcov 0.85
 
     vclust \\
         cluster \\
         -i ${prefix}.ani.tsv \\
         -o ${prefix}.cluster.tsv \\
         --ids ${prefix}.ani.ids.tsv \\
-        ${args3}
+        --metric ani \\
+        --ani 0.95 \\
+        --qcov 0.85 \\
+        --out-repr
 
     ### Extract cluster representatives
     csvtk cut \\
         ${prefix}.cluster.tsv \\
         --tabs \\
         --out-tabs \\
-        ${args4} \\
+        --tabs \\
+        --delete-header \\
+        -f cluster --out-delimiter '\t' \\
         --out-file ${prefix}.cluster_reps.tsv.gz
 
     ### Extract cluster representatives

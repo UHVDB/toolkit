@@ -5,8 +5,9 @@ include { SYLPHTAX_TAXPROF       } from '../../../modules/nf-core/sylphtax/taxpr
 include { SYLPHTAX_MERGE         } from '../../../modules/nf-core/sylphtax/merge/main'
 include { CSVTK_SEQKIT as CSVTK_SEQKIT_SYLPH } from '../../../modules/local/csvtk_seqkit/main'
 include { SPRING_COVERM } from '../../../modules/local/spring_coverm/main'
+include { UHVDB_GENECOVERAGE } from '../../../modules/local/uhvdb/genecoverage/main'
 include { UHVDB_REFERENCEACTIVITY } from '../../../modules/local/uhvdb/referenceactivity/main'
-include { rmEmptyTsvs } from '../functions/main'
+include { rmEmptyTsvs; rmEmptyFastAs } from '../functions/main'
 
 workflow REFERENCEANALYZE {
 
@@ -15,6 +16,7 @@ workflow REFERENCEANALYZE {
     uhvdb_unique_reps_fna_gz
     uhvdb_metadata_tsv_gz
     uhvdb_metadata_sylphtax_tsv_gz
+    uhvdb_protein_annotations_tsv_gz
 
     main:
 
@@ -60,23 +62,31 @@ workflow REFERENCEANALYZE {
     // MODULE: Extract contained viruses from sylph output
     //
     CSVTK_SEQKIT_SYLPH(
-        SPRING_SYLPH.out.tsv.combine(CSVTK_SEQKIT.out.fna_gz).map { meta, tsv, _meta2, fna_gz -> [ meta, tsv, fna_gz ] }
+        SPRING_SYLPH.out.tsv.combine(rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz)).map { meta, tsv, _meta2, fna_gz -> [ meta, tsv, fna_gz ] }
     )
 
     //
     // MODULE: Align reads to contained viruses
     //
     SPRING_COVERM(
-        spring.join(CSVTK_SEQKIT_SYLPH.out.fna_gz)
+        spring.join(rmEmptyFastAs(CSVTK_SEQKIT_SYLPH.out.fna_gz))
     )
 
     //
-    // MODULE: Assign activity tier to each reference genome
+    // MODULE: Compute per-gene coverage for contained viruses
     //
-    UHVDB_REFERENCEACTIVITY(
-        rmEmptyTsvs(SYLPHTAX_TAXPROF.out.taxprof_output).combine(rmEmptyTsvs(SPRING_COVERM.out.tsv_gz), by:0),
-        uhvdb_metadata_tsv_gz,
-        "${projectDir}/assets/models/phage_activity_model_full.joblib",
-        "${projectDir}/assets/models/phage_model_metadata_full.joblib"
+    UHVDB_GENECOVERAGE(
+        SPRING_COVERM.out.bam,
+        uhvdb_protein_annotations_tsv_gz
     )
+
+    // //
+    // // MODULE: Assign activity tier to each reference genome
+    // //
+    // UHVDB_REFERENCEACTIVITY(
+    //     rmEmptyTsvs(SYLPHTAX_TAXPROF.out.taxprof_output).combine(rmEmptyTsvs(SPRING_COVERM.out.tsv_gz), by:0),
+    //     uhvdb_metadata_tsv_gz,
+    //     "${projectDir}/assets/models/phage_activity_model_full.joblib",
+    //     "${projectDir}/assets/models/phage_model_metadata_full.joblib"
+    // )
 }

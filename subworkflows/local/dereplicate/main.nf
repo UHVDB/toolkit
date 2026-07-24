@@ -1,11 +1,12 @@
-include { TRTRIMMER_SEQHASHER } from '../../../modules/local/trtrimmer_seqhasher/main'
-include { UHVDB_UNIQUEHASH } from '../../../modules/local/uhvdb/uniquehash/main'
-include { UHVDB_RENAME } from '../../../modules/local/uhvdb/rename/main'
-include { VCLUST_CSVTK } from '../../../modules/local/vclust_csvtk/main'
-include { KMERDB_LZANI_CSVTK } from '../../../modules/local/kmerdb_lzani_csvtk/main'
-include { FIND_CONCATENATE } from '../../../modules/nf-core/find/concatenate/main'
-include { MCL } from '../../../modules/local/mcl/main'
-include { UHVDB_ANIREPS } from '../../../modules/local/uhvdb/anireps/main'
+include { TRTRIMMER_SEQHASHER   } from '../../../modules/local/trtrimmer_seqhasher/main'
+include { UHVDB_UNIQUEHASH      } from '../../../modules/local/uhvdb/uniquehash/main'
+include { UHVDB_RENAME          } from '../../../modules/local/uhvdb/rename/main'
+include { VCLUST_CSVTK          } from '../../../modules/local/vclust_csvtk/main'
+include { KMERDB_LZANI_CSVTK    } from '../../../modules/local/kmerdb_lzani_csvtk/main'
+include { FIND_CONCATENATE      } from '../../../modules/nf-core/find/concatenate/main'
+include { MCL                   } from '../../../modules/local/mcl/main'
+include { UHVDB_ANIREPS         } from '../../../modules/local/uhvdb/anireps/main'
+include { rmEmptyFastAs         } from '../functions/main'
 
 workflow DEREPLICATE {
 
@@ -23,7 +24,7 @@ workflow DEREPLICATE {
     // MODULE: Calculate the sequence hash for each virus
     //
     TRTRIMMER_SEQHASHER(
-        hq_confident_viruses_fna_gz
+        rmEmptyFastAs(hq_confident_viruses_fna_gz)
     )
 
     //
@@ -49,7 +50,9 @@ workflow DEREPLICATE {
     // MODULE: Align new sequences to self with vClust
     //
     VCLUST_CSVTK(
-        UHVDB_UNIQUEHASH.out.fna_gz
+        UHVDB_UNIQUEHASH.out.fna_gz,
+        0.995,
+        1.0
     )
 
     //
@@ -57,7 +60,9 @@ workflow DEREPLICATE {
     //
     KMERDB_LZANI_CSVTK(
         UHVDB_UNIQUEHASH.out.fna_gz,
-        uhvdb_unique_viruses_fna_gz.map{ fna_gz -> [ [ id:"uhvdb_unique_viruses" ], fna_gz ] }
+        uhvdb_unique_viruses_fna_gz.map{ fna_gz -> [ [ id:"uhvdb_unique_viruses" ], fna_gz ] },
+        0.995,
+        1.0
     )
 
     //
@@ -86,7 +91,8 @@ workflow DEREPLICATE {
         UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_classify" },
         UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_hqfilter" },
         MCL.out.mcl_gz,
-        uhvdb_metadata_tsv_gz
+        uhvdb_metadata_tsv_gz,
+        'genomovars'
     )
 
     emit:

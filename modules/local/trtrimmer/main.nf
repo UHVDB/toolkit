@@ -15,13 +15,13 @@ process TRTRIMMER {
     tuple val("${task.process}"), val('tr-trimmer'), eval('tr-trimmer --version'), topic: versions, emit: versions_tr_trimmer
 
     script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.tr-trimmer"
     """
     ### Trim DTRs
     tr-trimmer \\
         ${fasta} \\
-        ${args} \\
+        --min-length 20 \\
+        --include-tr-info \\
         > ${prefix}.fna
 
     ### Compress

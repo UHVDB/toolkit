@@ -6,32 +6,30 @@ process UHVDB_DOWNLOAD {
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/48/4882d1faf411b50c4d2feb23bad6858208e9bfd2c11a1b27a554eba01aec3df9/data'
         : 'community.wave.seqera.io/library/unzip_wget:c16e5234983a14dc'}"
 
-    input:
-    val uhvdb_s3
-    val uhvdb_zenodo
-
     output:
     path("uhvdb_metadata.tsv.gz")               , emit: metadata_tsv_gz
-    path("uhvdb_metadata_sylphtax.tsv.gz")      , emit: metadata_sylphtax_tsv_gz
+    path("uhvdb_metadata_sylphtax.tsv.gz")      , emit: metadata_sylphtax_tsv_gz, optional: true
     path("uhvdb_unique_reps.fna.gz")            , emit: unique_reps_fna_gz
     path("uhvdb_genomovars_gani.tsv.gz")        , emit: genomovars_gani_tsv_gz
     path("uhvdb_species_gani.tsv.gz")           , emit: species_gani_tsv_gz
     path("uhvdb_proteins.faa.gz")               , emit: proteins_faa_gz
     path("uhvdb_proteinsimilarity.tsv.gz")      , emit: proteinsimilarity_tsv_gz
     path("uhvdb_protein_annotations.tsv.gz")    , emit: protein_annotations_tsv_gz
-    tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions_wget
-    tuple val("${task.process}"), val('unzip'), eval('unzip --version | head -1 | cut -d " " -f 4'), emit: versions_unzip, topic: versions_unzip
-    tuple val("${task.process}"), val('uhvdb'), val('v5.1.0'), emit: versions_uhvdb, topic: versions_uhvdb
+    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions_wget
+    // tuple val("${task.process}"), val('unzip'), eval('unzip --version | head -1 | cut -d " " -f 4'), emit: versions_unzip, topic: versions_unzip
+    // tuple val("${task.process}"), val('uhvdb'), val('v5.1.0'), emit: versions_uhvdb, topic: versions_uhvdb
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
+    def uhvdb_s3 = params.uhvdb_s3
+    def uhvdb_zenodo = params.uhvdb_zenodo
     if ( task.attempt == 1 ) {
         """
         ### Download UHVDB files
         wget ${uhvdb_s3}uhvdb_metadata.tsv.gz
-        wget ${uhvdb_s3}uhvdb_metadata_sylphtax.tsv.gz
+        wget ${uhvdb_s3}uhvdb_metadata_sylphtax.tsv.gz || true
         wget ${uhvdb_s3}uhvdb_unique_reps.fna.gz
         wget ${uhvdb_s3}uhvdb_genomovars_gani.tsv.gz
         wget ${uhvdb_s3}uhvdb_species_gani.tsv.gz

@@ -22,14 +22,18 @@ workflow ANICLUSTER {
     //
     KMERDB_LZANI_CSVTK(
         new_genomovars_fna_gz,
-        old_genomovars_fna_gz
+        old_genomovars_fna_gz,
+        0.95,
+        0.85
     )
 
     //
     // MODULE: Align new sequences to self
     //
     VCLUST_CSVTK(
-        new_genomovars_fna_gz
+        new_genomovars_fna_gz,
+        0.95,
+        0.85
     )
 
     //
@@ -66,7 +70,8 @@ workflow ANICLUSTER {
         classify_tsv_gz,
         completeness_tsv_gz,
         MCL.out.mcl_gz,
-        uhvdb_metadata_tsv_gz
+        uhvdb_metadata_tsv_gz,
+        'species'
     )
 
     emit:

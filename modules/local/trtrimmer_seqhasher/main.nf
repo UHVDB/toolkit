@@ -6,7 +6,7 @@ process TRTRIMMER_SEQHASHER {
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/6e/6ec4b60ce51bc1356c4c15e864cace6dfff1b1836d6087e96aa85fbee58f2dbe/data'
         : 'community.wave.seqera.io/library/seq-hasher_tr-trimmer:5242bb1dce65b321'}"
-    
+
     input:
     tuple val(meta), path(fna_gz)
 
@@ -17,19 +17,20 @@ process TRTRIMMER_SEQHASHER {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
     """
     ### Trim DTRs
     tr-trimmer \\
         ${fna_gz} \\
-        ${args} \\
+        --min-length 20 \\
+        --include-tr-info \\
         > ${prefix}.trtrimmer.fna
 
     ### Calculate sequence hashes
     seq-hasher \\
         ${prefix}.trtrimmer.fna \\
-        ${args2} \\
+        --multi-kmer-hashing \\
+        --circular-kmers \\
+        --print-sequence \\
         > ${prefix}.seqhasher.tsv
 
     ### Compress output

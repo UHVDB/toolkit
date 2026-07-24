@@ -9,6 +9,8 @@ process VCLUST_CSVTK {
 
     input:
     tuple val(meta), path(fna_gz)
+    val min_ani
+    val min_qcov
 
     output:
     tuple val(meta), path("*.ani.tsv.gz")   , emit: lzani_tsv_gz
@@ -17,10 +19,7 @@ process VCLUST_CSVTK {
     tuple val("${task.process}"), val('vclust'), eval("vclust --version"), emit: versions_vclust, topic: versions
 
     script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
-    def args3 = task.ext.args3 ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}.new2new"
     """
     ### Run vClust
     vclust \\
@@ -28,7 +27,8 @@ process VCLUST_CSVTK {
         --in ${fna_gz} \\
         --out ${prefix}.prefilter.txt \\
         --threads ${task.cpus} \\
-        ${args}
+        --kmers-fraction 0.2 \\
+        --min-ident ${min_ani}
 
     vclust \\
         align \\
@@ -36,14 +36,16 @@ process VCLUST_CSVTK {
         --out ${prefix}.ani.tsv \\
         --filter ${prefix}.prefilter.txt \\
         --threads ${task.cpus} \\
-        ${args2}
+        --out-ani ${min_ani} \\
+        --out-qcov ${min_qcov}
 
     ### Convert to gani
     csvtk cut \\
         ${prefix}.ani.tsv \\
         --tabs \\
         --out-tabs \\
-        ${args3} \\
+        --delete-header \\
+        --fields query,reference,gani \\
         --out-file ${prefix}.gani.tsv.gz
 
     ### Compress
@@ -54,7 +56,7 @@ process VCLUST_CSVTK {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.new2new"
     """
     echo "" | gzip >  ${prefix}.gani.tsv.gz
     echo "" | gzip >  ${prefix}.lzani.tsv.gz

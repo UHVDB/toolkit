@@ -20,18 +20,14 @@ process KMERDB_LZANI_CSVTK_SEQKIT {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
-    def args3 = task.ext.args3 ?: ''
-    def args4 = task.ext.args4 ?: ''
-    def args5 = task.ext.args5 ?: ''
     """
     ### Build reference database
     echo "${ref_fasta}" > ref_kdb.txt
 
     kmer-db \\
         build \\
-        ${args} \\
+        -k 25 \\
+        -f 0.2 \\
         -t ${task.cpus} \\
         -multisample-fasta \\
         ref_kdb.txt \\
@@ -43,7 +39,8 @@ process KMERDB_LZANI_CSVTK_SEQKIT {
     kmer-db \\
         new2all \\
         -sparse \\
-        ${args2} \\
+        -min num-kmers:20 \\
+        -min ani-shorter:0.95 \\
         -t ${task.cpus} \\
         -multisample-fasta \\
         ref.kdb \\
@@ -55,7 +52,7 @@ process KMERDB_LZANI_CSVTK_SEQKIT {
         distance \\
         ani-shorter \\
         -sparse \\
-        ${args3} \\
+        -min 0.95 \\
         -t ${task.cpus} \\
         query_v_ref.csv \\
         query_v_ref.dist.csv
@@ -76,7 +73,7 @@ process KMERDB_LZANI_CSVTK_SEQKIT {
         -t ${task.cpus} \\
         --multisample-fasta true \\
         --out-type tsv \\
-        --flt-kmerdb query_v_ref.dist_mod.csv ${args4}
+        --flt-kmerdb query_v_ref.dist_mod.csv 0.95
 
     gzip -c ${prefix}.lzani.tsv > ${prefix}.lzani.tsv.gz
 
@@ -84,7 +81,7 @@ process KMERDB_LZANI_CSVTK_SEQKIT {
     csvtk filter2 \\
         ${prefix}.lzani.tsv  \\
         --tabs \\
-        ${args5} | \\
+        --filter '( \$ani >= 0.95 ) && ( \$qcov >= 0.85 || \$rcov >= 0.85 )' | \\
     csvtk cut \\
         --tabs \\
         --fields query | \\

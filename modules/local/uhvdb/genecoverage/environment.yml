@@ -1,0 +1,7 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- conda-forge::numpy
+- conda-forge::polars=1.41.1
+- bioconda::pysam=0.22.1

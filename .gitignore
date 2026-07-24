@@ -8,6 +8,6 @@ testing*
 *.pyc
 null/
 .lineage/
-test_databases/
+databases/
 TEST*/
 .cursor/

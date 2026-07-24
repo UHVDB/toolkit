@@ -64,6 +64,8 @@ def main(args=None):
                 (pl.col('query_taxa') != 'unassigned') &
                 (pl.col('column_3') >= args.threshold)
             )
+            # MCL abc format expects only: node1, node2, weight
+            .select(['column_1', 'column_2', 'column_3'])
     )
 
     graph.sink_csv(args.output, separator='\t', include_header=False)

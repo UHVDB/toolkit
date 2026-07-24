@@ -1,23 +1,23 @@
-include { SEQKIT_SPLIT2 } from '../../../modules/local/seqkit/split2/main'
-include { rmEmptyFastAs; add_split } from '../functions/main'
-include { PYRODIGALGV } from '../../../modules/local/pyrodigalgv/main'
-include { FIND_CONCATENATE } from '../../../modules/nf-core/find/concatenate/main'
-include { DIAMOND_MAKEDB } from '../../../modules/nf-core/diamond/makedb/main'
-include { DIAMOND_BLASTP as DIAMOND_BLASTP_V_NEW } from '../../../modules/nf-core/diamond/blastp/main.nf'
-include { DIAMOND_BLASTP as DIAMOND_BLASTP_V_OLD } from '../../../modules/nf-core/diamond/blastp/main.nf'
-include { DIAMOND_BLASTPSELF } from '../../../modules/local/diamond/blastpself/main'
-include { UHVDB_SELFSCORE } from '../../../modules/local/uhvdb/selfscore/main'
-include { UHVDB_NORMSCORE } from '../../../modules/local/uhvdb/normscore/main'
+include { SEQKIT_SPLIT2                             } from '../../../modules/local/seqkit/split2/main'
+include { rmEmptyFastAs; add_split                  } from '../functions/main'
+include { PYRODIGALGV                               } from '../../../modules/local/pyrodigalgv/main'
+include { FIND_CONCATENATE                          } from '../../../modules/nf-core/find/concatenate/main'
+include { DIAMOND_MAKEDB                            } from '../../../modules/nf-core/diamond/makedb/main'
+include { DIAMOND_BLASTP as DIAMOND_BLASTP_V_NEW    } from '../../../modules/nf-core/diamond/blastp/main.nf'
+include { DIAMOND_BLASTP as DIAMOND_BLASTP_V_OLD    } from '../../../modules/nf-core/diamond/blastp/main.nf'
+include { DIAMOND_BLASTPSELF                        } from '../../../modules/local/diamond/blastpself/main'
+include { UHVDB_SELFSCORE                           } from '../../../modules/local/uhvdb/selfscore/main'
+include { UHVDB_NORMSCORE                           } from '../../../modules/local/uhvdb/normscore/main'
 include { FIND_CONCATENATE as FIND_CONCATENATE_NORMSCORE } from '../../../modules/nf-core/find/concatenate/main'
-include { UHVDB_REPGRAPH } from '../../../modules/local/uhvdb/repgraph/main'
-include { MCL as MCL_FAMILY } from '../../../modules/local/mcl/main'
-include { UHVDB_PRUNE as UHVDB_PRUNE_SUBFAMILY } from '../../../modules/local/uhvdb/prune/main'
-include { MCL as MCL_SUBFAMILY } from '../../../modules/local/mcl/main'
-include { UHVDB_PRUNE as UHVDB_PRUNE_GENUS } from '../../../modules/local/uhvdb/prune/main'
-include { MCL as MCL_GENUS } from '../../../modules/local/mcl/main'
-include { UHVDB_PRUNE as UHVDB_PRUNE_SUBGENUS } from '../../../modules/local/uhvdb/prune/main'
-include { MCL as MCL_SUBGENUS } from '../../../modules/local/mcl/main'
-include { UHVDB_AAICLUSTER } from '../../../modules/local/uhvdb/aaicluster/main'
+include { UHVDB_REPGRAPH                            } from '../../../modules/local/uhvdb/repgraph/main'
+include { MCL as MCL_FAMILY                         } from '../../../modules/local/mcl/main'
+include { UHVDB_PRUNE as UHVDB_PRUNE_SUBFAMILY      } from '../../../modules/local/uhvdb/prune/main'
+include { MCL as MCL_SUBFAMILY                      } from '../../../modules/local/mcl/main'
+include { UHVDB_PRUNE as UHVDB_PRUNE_GENUS          } from '../../../modules/local/uhvdb/prune/main'
+include { MCL as MCL_GENUS                          } from '../../../modules/local/mcl/main'
+include { UHVDB_PRUNE as UHVDB_PRUNE_SUBGENUS       } from '../../../modules/local/uhvdb/prune/main'
+include { MCL as MCL_SUBGENUS                       } from '../../../modules/local/mcl/main'
+include { UHVDB_AAICLUSTER                          } from '../../../modules/local/uhvdb/aaicluster/main'
 
 workflow AAICLUSTER {
 
@@ -32,7 +32,8 @@ workflow AAICLUSTER {
     // MODULE: Split new + old species reps into chunks
     //
     SEQKIT_SPLIT2(
-        rmEmptyFastAs(new_species_reps_fna_gz.mix(old_species_reps_fna_gz))
+        rmEmptyFastAs(new_species_reps_fna_gz.mix(old_species_reps_fna_gz)),
+        10000
     )
     ch_split_species_reps_fna_gz = SEQKIT_SPLIT2.out.fastx
         .transpose()
@@ -112,16 +113,17 @@ workflow AAICLUSTER {
     // MODULE: Calculate normalized protein similarity scores
     //
     UHVDB_NORMSCORE(
-        DIAMOND_BLASTP_V_OLD.out.txt.map { meta, txt -> [ [ id: meta.id ], txt ] }
-            .mix(DIAMOND_BLASTP_V_NEW.out.txt.map { meta, txt -> [ [ id: meta.id ], txt ] })
-            .join(UHVDB_SELFSCORE.out.tsv_gz),
+        DIAMOND_BLASTP_V_OLD.out.txt.map { meta, txt -> [ meta.id, [ id: "${meta.id}.new2old" ], txt ] }
+            .mix(DIAMOND_BLASTP_V_NEW.out.txt.map { meta, txt -> [ meta.id, [ id: "${meta.id}.new2new" ], txt ] })
+            .combine(UHVDB_SELFSCORE.out.tsv_gz.map { meta, tsv_gz -> [ meta.id, tsv_gz ] }, by: 0)
+            .map { _id, meta, txt, tsv_gz -> [ meta, txt, tsv_gz ] }
     )
 
     //
     // MODULE: Combine normalized protein similarity scores
     //
     FIND_CONCATENATE_NORMSCORE(
-        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.mix(proteinsimilarity_tsv_gz).collect().map{ tsv_gzs -> [ [ id:'uhvbd_normscore' ], tsv_gzs ] }
+        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.mix(proteinsimilarity_tsv_gz).collect().map{ tsv_gzs -> [ [ id:'uhvdb_normscore' ], tsv_gzs ] }
     )
 
     //

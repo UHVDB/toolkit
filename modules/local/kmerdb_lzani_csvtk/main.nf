@@ -10,6 +10,8 @@ process KMERDB_LZANI_CSVTK {
     input:
     tuple val(meta), path(query_fasta)
     tuple val(meta2), path(ref_fasta)
+    val min_ani
+    val min_qcov
 
     output:
     tuple val(meta), path("*.lzani.tsv.gz") , emit: lzani_tsv_gz
@@ -18,19 +20,14 @@ process KMERDB_LZANI_CSVTK {
     // TODO: Add kmer-db and lz-ani versions
 
     script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
-    def args3 = task.ext.args3 ?: ''
-    def args4 = task.ext.args4 ?: ''
-    def args5 = task.ext.args5 ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}.new2old"
     """
     ### Build reference database
     echo "${ref_fasta}" > ref_kdb.txt
 
     kmer-db \\
         build \\
-        ${args} \\
+        -k 25 -f 0.2 \\
         -t ${task.cpus} \\
         -multisample-fasta \\
         ref_kdb.txt \\
@@ -42,7 +39,7 @@ process KMERDB_LZANI_CSVTK {
     kmer-db \\
         new2all \\
         -sparse \\
-        ${args2} \\
+        -min num-kmers:20 -min ani-shorter:${min_ani} \\
         -t ${task.cpus} \\
         -multisample-fasta \\
         ref.kdb \\
@@ -54,7 +51,7 @@ process KMERDB_LZANI_CSVTK {
         distance \\
         ani-shorter \\
         -sparse \\
-        ${args3} \\
+        -min ${min_ani} \\
         -t ${task.cpus} \\
         query_v_ref.csv \\
         query_v_ref.dist.csv
@@ -74,14 +71,18 @@ process KMERDB_LZANI_CSVTK {
         -t ${task.cpus} \\
         --multisample-fasta true \\
         --out-type tsv \\
-        --flt-kmerdb query_v_ref.dist_mod.csv ${args4}
+        --flt-kmerdb query_v_ref.dist_mod.csv ${min_ani} \\
+        --out-filter ani ${min_ani} \\
+        --out-filter qcov ${min_qcov}
 
     gzip -c ${prefix}.lzani.tsv > ${prefix}.lzani.tsv.gz
 
     ### Extract new species
     csvtk cut \\
         ${prefix}.lzani.tsv \\
-        ${args5} \\
+        --tabs \\
+        --delete-header \\
+        --fields query,reference,gani \\
         --out-file ${prefix}.gani.tsv.gz
 
     ### Cleanup
@@ -90,7 +91,7 @@ process KMERDB_LZANI_CSVTK {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.new2old"
     """
     echo "" | gzip >  ${prefix}.lzani.tsv.gz
     echo "" | gzip >  ${prefix}.gani.tsv.gz

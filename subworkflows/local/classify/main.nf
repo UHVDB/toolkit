@@ -150,8 +150,8 @@ workflow CLASSIFY {
     )
 
     emit:
-    confident_fna_gz = ch_confident_fna_gz
-    uncertain_fna_gz = ch_uncertain_fna_gz
+    confident_fna_gz = ch_confident_fna_gz.map { meta, fna_gz -> def meta_new = meta + [ confidence: 'confident' ]; [ meta_new, fna_gz ] }
+    uncertain_fna_gz = ch_uncertain_fna_gz.map { meta, fna_gz -> def meta_new = meta + [ confidence: 'uncertain' ] + [ id: meta.id + '_uncertain' ]; [ meta_new, fna_gz ] }
     complete_fna_gz  = ch_complete_fna_gz
     tsv_gz           = ch_tsv_gz
     combined_tsv_gz  = FIND_CONCATENATEHEADERS.out.file_out

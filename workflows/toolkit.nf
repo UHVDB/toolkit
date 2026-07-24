@@ -46,22 +46,19 @@ workflow TOOLKIT {
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
 
-    // //
-    // // MODULE: Download UHVDB database
-    // //
-    // UHVDB_DOWNLOAD(
-    //     params.uhvdb_s3,
-    //     params.uhvdb_zenodo
-    // )
-    // // TODO: Change location to S3 bucket
-    // ch_uhvdb_metadata_tsv_gz = UHVDB_DOWNLOAD.out.metadata_tsv_gz.collect()
-    // ch_uhvdb_metadata_sylphtax_tsv_gz = UHVDB_DOWNLOAD.out.metadata_sylphtax_tsv_gz.collect()
-    // ch_uhvdb_unique_reps_fna_gz = UHVDB_DOWNLOAD.out.unique_reps_fna_gz.collect()
-    // ch_uhvdb_genomovars_gani_tsv_gz = UHVDB_DOWNLOAD.out.genomovars_gani_tsv_gz.collect()
-    // ch_uhvdb_species_gani_tsv_gz = UHVDB_DOWNLOAD.out.species_gani_tsv_gz.collect()
-    // ch_uhvdb_proteins_faa_gz = UHVDB_DOWNLOAD.out.proteins_faa_gz.collect()
-    // ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
-    // ch_uhvdb_protein_annotations_tsv_gz = UHVDB_DOWNLOAD.out.protein_annotations_tsv_gz.collect()
+    //
+    // MODULE: Download UHVDB database
+    //
+    UHVDB_DOWNLOAD()
+    // TODO: Change location to S3 bucket
+    ch_uhvdb_metadata_tsv_gz = UHVDB_DOWNLOAD.out.metadata_tsv_gz.collect()
+    ch_uhvdb_metadata_sylphtax_tsv_gz = UHVDB_DOWNLOAD.out.metadata_sylphtax_tsv_gz.collect()
+    ch_uhvdb_unique_reps_fna_gz = UHVDB_DOWNLOAD.out.unique_reps_fna_gz.collect()
+    ch_uhvdb_genomovars_gani_tsv_gz = UHVDB_DOWNLOAD.out.genomovars_gani_tsv_gz.collect()
+    ch_uhvdb_species_gani_tsv_gz = UHVDB_DOWNLOAD.out.species_gani_tsv_gz.collect()
+    ch_uhvdb_proteins_faa_gz = UHVDB_DOWNLOAD.out.proteins_faa_gz.collect()
+    ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
+    ch_uhvdb_protein_annotations_tsv_gz = UHVDB_DOWNLOAD.out.protein_annotations_tsv_gz.collect()
 
     if ( params.run_update || params.run_analyze ) {
         //
@@ -75,7 +72,7 @@ workflow TOOLKIT {
         ch_spring = PREPROCESS.out.spring
     }
 
-    if ( params.run_update || params.run_assembly_analyze ) {
+    if ( params.run_update ) {
         //
         // SUBWORKFLOW: Assemble reads into contigs
         //
@@ -92,10 +89,7 @@ workflow TOOLKIT {
         //
         // MODULE: Download UHVDB-CheckV database
         //
-        CHECKV_DOWNLOAD(
-            params.checkv_s3,
-            params.checkv_zenodo
-        )
+        CHECKV_DOWNLOAD()
         ch_checkv_db = CHECKV_DOWNLOAD.out.checkv_db.first()
 
         // Create channel from DTR sequences file
@@ -124,46 +118,45 @@ workflow TOOLKIT {
             ch_checkv_db
         )
 
-        // //
-        // // SUBWORKFLOW: Identify confident viruses from HQ viruses
-        // //
-        // HCFILTER(
-        //     HQFILTER.out.fna_gz,
-        //     CLASSIFY.out.tsv_gz
-        // )
+        //
+        // SUBWORKFLOW: Identify confident viruses from HQ viruses
+        //
+        HCFILTER(
+            HQFILTER.out.fna_gz,
+        )
 
-        // //
-        // // SUBWORKFLOW: Dereplicate high-quality, confident viruses
-        // //
-        // DEREPLICATE(
-        //     HCFILTER.out.fna_gz,
-        //     CLASSIFY.out.combined_tsv_gz,
-        //     HQFILTER.out.combined_tsv_gz,
-        //     ch_uhvdb_unique_reps_fna_gz,
-        //     ch_uhvdb_genomovars_gani_tsv_gz,
-        //     ch_uhvdb_metadata_tsv_gz
-        // )
+        //
+        // SUBWORKFLOW: Dereplicate high-quality, confident viruses
+        //
+        DEREPLICATE(
+            HCFILTER.out.fna_gz,
+            CLASSIFY.out.combined_tsv_gz,
+            HQFILTER.out.combined_tsv_gz,
+            ch_uhvdb_unique_reps_fna_gz,
+            ch_uhvdb_genomovars_gani_tsv_gz,
+            ch_uhvdb_metadata_tsv_gz
+        )
 
-        // //
-        // // SUBWORKFLOW: Cluster unique viruses at the species level
-        // //
-        // ANICLUSTER(
-        //     DEREPLICATE.out.new_fna_gz,
-        //     DEREPLICATE.out.classify_tsv_gz,
-        //     DEREPLICATE.out.completeness_tsv_gz,
-        //     DEREPLICATE.out.old_fna_gz,
-        //     ch_uhvdb_species_gani_tsv_gz,
-        //     ch_uhvdb_metadata_tsv_gz
-        // )
+        //
+        // SUBWORKFLOW: Cluster unique viruses at the species level
+        //
+        ANICLUSTER(
+            DEREPLICATE.out.new_fna_gz,
+            DEREPLICATE.out.classify_tsv_gz,
+            DEREPLICATE.out.completeness_tsv_gz,
+            DEREPLICATE.out.old_fna_gz,
+            ch_uhvdb_species_gani_tsv_gz,
+            ch_uhvdb_metadata_tsv_gz
+        )
 
-        // //
-        // // SUBWORKFLOW: Cluster new species reps at the family -> subgenus level
-        // //
-        // AAICLUSTER(
-        //     ANICLUSTER.out.new_fna_gz,
-        //     ANICLUSTER.out.old_fna_gz,
-        //     ch_uhvdb_proteinsimilarity_tsv_gz
-        // )
+        //
+        // SUBWORKFLOW: Cluster new species reps at the family -> subgenus level
+        //
+        AAICLUSTER(
+            ANICLUSTER.out.new_fna_gz,
+            ANICLUSTER.out.old_fna_gz,
+            ch_uhvdb_proteinsimilarity_tsv_gz
+        )
 
         // //
         // // MODULE: Extract new genomovar reps that are not species reps
@@ -230,17 +223,18 @@ workflow TOOLKIT {
 
     }
 
-    // if ( params.run_analyze ) {
-    //     //
-    //     // SUBWORKFLOW: Analyze viruses
-    //     //
-    //     REFERENCEANALYZE(
-    //         ch_spring,
-    //         ch_uhvdb_unique_reps_fna_gz,
-    //         ch_uhvdb_metadata_tsv_gz,
-    //         ch_uhvdb_metadata_sylphtax_tsv_gz
-    //     )
-    // }
+    if ( params.run_analyze ) {
+        //
+        // SUBWORKFLOW: Analyze viruses
+        //
+        REFERENCEANALYZE(
+            ch_spring,
+            ch_uhvdb_unique_reps_fna_gz,
+            ch_uhvdb_metadata_tsv_gz,
+            ch_uhvdb_metadata_sylphtax_tsv_gz,
+            ch_uhvdb_protein_annotations_tsv_gz
+        )
+    }
 
     if ( params.run_assembly_analyze ) {
         //

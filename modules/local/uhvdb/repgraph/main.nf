@@ -17,7 +17,7 @@ process UHVDB_REPGRAPH {
     tuple val("${task.process}"), val('uhvdb_repgraph'), eval('uhvdb_repgraph.py --version'), topic: versions, emit: versions_uhvdb_repgraph
 
     script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.newgraph"
     """
     ### Extract IDs of all sequences
     zgrep "^>" ${new_fna_gz} | sed 's/^>//' > ${prefix}.ids.txt
@@ -37,7 +37,7 @@ process UHVDB_REPGRAPH {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.newgraph"
     """
     echo "" | gzip > ${prefix}.gani.tsv.gz
     """

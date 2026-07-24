@@ -18,7 +18,7 @@ process UHVDB_RENAME {
     tuple val("${task.process}"), val('uhvdb_rename'), eval('uhvdb_rename.py --version'), topic: versions, emit: versions_uhvdb_rename
 
     script:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.rename"
     """
     ### Replace seq_name in classify.tsv.gz 
     uhvdb_rename.py \\
@@ -31,7 +31,7 @@ process UHVDB_RENAME {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}.rename"
     """
     echo "" | gzip > ${prefix}.tsv.gz
     """

@@ -50,7 +50,7 @@ process FIND_CONCATENATEHEADERS {
 
     """
     ### Output header from first file
-    first_file=\$(find to_concatenate/ -mindepth 1 | sort | head -n 1)
+    first_file=\$(find to_concatenate/ -mindepth 1 | sort | awk 'NR==1 {print; exit}')
     ${cmd0} "\${first_file}" | head -n ${header_row_count} > ${out_fname} || [ \${PIPESTATUS[0]} -eq 0 -o \${PIPESTATUS[0]} -eq 141 ]
 
     while IFS= read -r -d \$'\\0' file; do
