@@ -24,7 +24,10 @@ workflow REFERENCEANALYZE {
     // MODULE: Extract species reps from UHVDB
     //
     CSVTK_SEQKIT(
-        uhvdb_metadata_tsv_gz.combine(uhvdb_unique_reps_fna_gz).map { tsv_gz, fna_gz -> [ [ id: 'uhvdb' ], tsv_gz, fna_gz ] }
+        uhvdb_metadata_tsv_gz.combine(uhvdb_unique_reps_fna_gz).map { tsv_gz, fna_gz -> [ [ id: 'uhvdb' ], tsv_gz, fna_gz ] },
+        "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f species_rep --out-delimiter '\t'",
+        "",
+        "species_reps"
     )
 
     //
@@ -62,7 +65,10 @@ workflow REFERENCEANALYZE {
     // MODULE: Extract contained viruses from sylph output
     //
     CSVTK_SEQKIT_SYLPH(
-        SPRING_SYLPH.out.tsv.combine(rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz)).map { meta, tsv, _meta2, fna_gz -> [ meta, tsv, fna_gz ] }
+        SPRING_SYLPH.out.tsv.combine(rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz)).map { meta, tsv, _meta2, fna_gz -> [ meta, tsv, fna_gz ] },
+        "--tabs --filter '( \$Genome_file == \"genomes/uhvdb.species_reps.fna.gz\" )' | csvtk cut --tabs -f Contig_name --out-delimiter '\t'",
+        "",
+        "contained_viruses"
     )
 
     //

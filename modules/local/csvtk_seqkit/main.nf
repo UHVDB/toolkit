@@ -9,6 +9,9 @@ process CSVTK_SEQKIT {
 
     input:
     tuple val(meta), path(csv), path(fasta)
+    val args
+    val args2
+    val prefix_suffix
 
     output:
     tuple val(meta), path("*.fna.gz"), emit: fna_gz
@@ -19,9 +22,7 @@ process CSVTK_SEQKIT {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = "${meta.id}.${prefix_suffix}"
     """
     ### Filter CSV file
     csvtk \\
@@ -44,7 +45,7 @@ process CSVTK_SEQKIT {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = "${meta.id}.${prefix_suffix}"
     """
     echo "" | gzip > ${prefix}.fna.gz
     """

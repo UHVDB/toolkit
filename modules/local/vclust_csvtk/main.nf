@@ -59,6 +59,6 @@ process VCLUST_CSVTK {
     def prefix = task.ext.prefix ?: "${meta.id}.new2new"
     """
     echo "" | gzip >  ${prefix}.gani.tsv.gz
-    echo "" | gzip >  ${prefix}.lzani.tsv.gz
+    echo "" | gzip >  ${prefix}.ani.tsv.gz
     """
 }

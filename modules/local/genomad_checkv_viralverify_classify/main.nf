@@ -163,10 +163,12 @@ process GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
     def db_type = meta.db_type ?: 'Unspecified'
     def body_site = meta.body_site ?: 'Other'
     def dtr_arg = dtr_sequences_txt ? "--dtr_sequences ${dtr_sequences_txt}" : "--dtr_sequences ''"
+    // Call sites may wrap a single FASTA in a list (e.g. [ fastx ])
+    def genomad_fasta = (fasta instanceof List || fasta instanceof Collection) ? fasta[0].toString() : fasta.toString()
     def classify_cmd = genomadCheckvViralverifyClassify(
         prefix,
         task.cpus,
-        fasta.toString(),
+        genomad_fasta,
         genomad_db.toString(),
         checkv_db.toString(),
         viralverify_db.toString(),

@@ -84,7 +84,7 @@ workflow TOOLKIT {
         ch_fastas = fastas.mix(ASSEMBLE.out.assembly_fna_gz)
     }
 
-    
+
     if ( params.run_update || params.run_assembly_analyze ) {
         //
         // MODULE: Download UHVDB-CheckV database
@@ -162,14 +162,18 @@ workflow TOOLKIT {
         // // MODULE: Extract new genomovar reps that are not species reps
         // //
         // CSVTK_SEQKIT(
-        //     ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(ANICLUSTER.out.new_fna_gz))
+        //     ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(ANICLUSTER.out.new_fna_gz)),
+        //     "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f uhvdb_id --out-delimiter '\t'",
+        //     "--invert-match",
+        //     "genomovar_not_species_reps"
         // )
 
         // //
         // // MODULE: Split new genomovar reps into chunks
         // //
         // SEQKIT_SPLIT2(
-        //     rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz)
+        //     rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz),
+        //     params.new_genomovar_chunk_size
         // )
         // ch_split_genomovar_reps_fna_gz = SEQKIT_SPLIT2.out.fastx
         //     .transpose()
@@ -192,7 +196,7 @@ workflow TOOLKIT {
         //     ch_uhvdb_metadata_tsv_gz,
         //     ch_uhvdb_metadata_sylphtax_tsv_gz
         // )
-        
+
         //
         // MODULE: Download CRISPR spacer database
         //
