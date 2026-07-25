@@ -12,10 +12,6 @@ process SEQKIT_SEQ_REPLACE_SPLIT2 {
 
     output:
     tuple val(meta), path("${prefix}/*"), emit: fastx
-    tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed 's/^.*v//'"), emit: versions_seqkit, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     prefix      = task.ext.prefix   ?: "${meta.id}"
@@ -25,7 +21,7 @@ process SEQKIT_SEQ_REPLACE_SPLIT2 {
         --remove-gaps \\
         --upper-case \\
         --validate-seq \\
-        --min-len ${params.min_seq_length} \\
+        --min-len 2000 \\
         --threads $task.cpus \\
         $fastx \\
     | seqkit \\
@@ -33,7 +29,7 @@ process SEQKIT_SEQ_REPLACE_SPLIT2 {
         --pattern '^' \\
         --replacement ${prefix}_ \\
     | seqkit split2 \\
-        --by-size ${params.database_split_size} \\
+        --by-size 1000 \\
         --threads $task.cpus \\
         --out-dir ${prefix} \\
         -e .gz

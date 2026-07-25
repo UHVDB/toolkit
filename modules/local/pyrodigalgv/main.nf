@@ -12,10 +12,6 @@ process PYRODIGALGV {
 
     output:
     tuple val(meta), path("*.faa.gz")                   , emit: faa_gz
-    tuple val("${task.process}"), val('pyrodigal-gv'), eval("pyrodigal-gv --version |& sed 's/pyrodigal-gv v//'"), emit: versions_pyrodigal_gv, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''

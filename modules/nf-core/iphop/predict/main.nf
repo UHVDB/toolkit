@@ -15,7 +15,6 @@ process IPHOP_PREDICT {
     tuple val(meta), path("Host_prediction_to_genus_m*.csv")    , emit: iphop_genus
     tuple val(meta), path("Host_prediction_to_genome_m*.csv")   , emit: iphop_genome
     tuple val(meta), path("Detailed_output_by_tool.csv")        , emit: iphop_detailed_output
-    path "versions.yml"                                         , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -15,12 +15,6 @@ process UHVDB_REFERENCEACTIVITY {
 
     output:
     tuple val(meta), path("${meta.id}_reference_activity.tsv.gz")   , emit: tsv_gz
-    tuple val("${task.process}"), val('numpy'), eval('python -c "import numpy; print(numpy.__version__)"'), topic: versions, emit: versions_numpy
-    tuple val("${task.process}"), val('pandas'), eval('python -c "import pandas; print(pandas.__version__)"'), topic: versions, emit: versions_pandas
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('pyarrow'), eval('python -c "import pyarrow; print(pyarrow.__version__)"'), topic: versions, emit: versions_pyarrow
-    tuple val("${task.process}"), val('scikit-learn'), eval('python -c "import sklearn; print(sklearn.__version__)"'), topic: versions, emit: versions_scikit_learn
-    tuple val("${task.process}"), val('joblib'), eval('python -c "import joblib; print(joblib.__version__)"'), topic: versions, emit: versions_joblib
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

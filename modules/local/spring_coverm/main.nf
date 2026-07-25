@@ -13,12 +13,6 @@ process SPRING_COVERM {
     output:
     tuple val(meta), path('*.depth.tsv.gz'), emit: tsv_gz
     tuple val(meta), path('*.bam')         , emit: bam, optional: true
-    tuple val("${task.process}"), val('coverm'), eval('coverm --version | sed "s/coverm //"'), emit: versions_coverm, topic: versions
-    tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
-    // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def prefix         = task.ext.prefix ?: "${meta.id}"

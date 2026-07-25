@@ -16,7 +16,6 @@ process VCLUST_ALIGN {
     tuple val(meta), path("${prefix}.tsv"), emit: tsv
     tuple val(meta), path("*.ids.tsv")    , emit: ids
     tuple val(meta), path("*.aln.tsv")    , emit: aln, optional: true
-    path "versions.yml"                   , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -1,5 +1,8 @@
 process UHVDB_DOWNLOAD {
     label 'process_single'
+    tag "UHVDB 5.1"
+    storeDir "${params.dbdir}/uhvdb/5.1"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -15,53 +18,25 @@ process UHVDB_DOWNLOAD {
     path("uhvdb_proteins.faa.gz")               , emit: proteins_faa_gz
     path("uhvdb_proteinsimilarity.tsv.gz")      , emit: proteinsimilarity_tsv_gz
     path("uhvdb_protein_annotations.tsv.gz")    , emit: protein_annotations_tsv_gz
-    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions_wget
-    // tuple val("${task.process}"), val('unzip'), eval('unzip --version | head -1 | cut -d " " -f 4'), emit: versions_unzip, topic: versions_unzip
-    // tuple val("${task.process}"), val('uhvdb'), val('v5.1.0'), emit: versions_uhvdb, topic: versions_uhvdb
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
-    def uhvdb_s3 = params.uhvdb_s3
-    def uhvdb_zenodo = params.uhvdb_zenodo
     if ( task.attempt == 1 ) {
         """
-        ### Download UHVDB files
-        wget ${uhvdb_s3}uhvdb_metadata.tsv.gz
-        wget ${uhvdb_s3}uhvdb_metadata_sylphtax.tsv.gz || true
-        wget ${uhvdb_s3}uhvdb_unique_reps.fna.gz
-        wget ${uhvdb_s3}uhvdb_genomovars_gani.tsv.gz
-        wget ${uhvdb_s3}uhvdb_species_gani.tsv.gz
-        wget ${uhvdb_s3}uhvdb_proteins.faa.gz
-        wget ${uhvdb_s3}uhvdb_proteinsimilarity.tsv.gz
-        wget ${uhvdb_s3}uhvdb_protein_annotations.tsv.gz
-        """
-    } else {
-        """
-        ### Download UHVDB files
-        wget ${uhvdb_zenodo} -O uhvdb.zip
+        # download UHVDB tarball
+        wget https://s3.kopah.uw.edu/uhvdb/v5/uhvdb.tar.gz
 
-        ### Extract UHVDB files
-        unzip uhvdb.zip
+        # extract UHVDB tarball
+        tar -xzf uhvdb.tar.gz
 
-        ### Rename files
-        mv *_metadata.tsv.gz uhvdb_metadata.tsv.gz
-        mv *_unique_reps.fna.gz uhvdb_unique_reps.fna.gz
-        mv *_protein_annotations.tsv.gz uhvdb_protein_annotations.tsv.gz
-        mv *_proteinsimilarity.tsv.gz uhvdb_proteinsimilarity.tsv.gz
-        mv *_species_gani.tsv.gz uhvdb_species_gani.tsv.gz
-        mv *_genomovars_gani.tsv.gz uhvdb_genomovars_gani.tsv.gz
-        mv *_protein*.faa.gz uhvdb_proteins.faa.gz
-
-        ### Cleanup
-        rm uhvdb.zip
+        # clean up tarball
+        rm uhvdb.tar.gz
         """
     }
 
+    // TODO: add zenodo fallback
+
     stub:
     """
-    ### Create empty files
     echo "" | gzip > uhvdb_metadata.tsv.gz
     echo "" | gzip > uhvdb_metadata_sylphtax.tsv.gz
     echo "" | gzip > uhvdb_unique_reps.fna.gz

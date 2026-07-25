@@ -16,8 +16,6 @@ process KMERDB_LZANI_CSVTK {
     output:
     tuple val(meta), path("*.lzani.tsv.gz") , emit: lzani_tsv_gz
     tuple val(meta), path("*.gani.tsv.gz")  , emit: gani_tsv_gz
-    tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), emit: versions_csvtk, topic: versions
-    // TODO: Add kmer-db and lz-ani versions
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}.new2old"

@@ -6,6 +6,7 @@ dependencies:
 - bioconda::checkv=1.0.3
 - bioconda::viralverify=1.1
 - bioconda::seqkit=2.13.0
+- bioconda::hmmer=3.4
 - conda-forge::csvtk=0.37.0
 - conda-forge::gzip=1.14
 - conda-forge::aria2=1.37.0

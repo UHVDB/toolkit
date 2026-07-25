@@ -8,7 +8,6 @@ process PHAROKKA_INSTALLDATABASES {
 
     output:
     path("${prefix}/")      , emit: pharokka_db
-    path "versions.yml"     , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

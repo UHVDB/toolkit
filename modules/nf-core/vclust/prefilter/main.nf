@@ -12,7 +12,6 @@ process VCLUST_PREFILTER {
 
     output:
     tuple val(meta), path("*.txt"), emit: txt
-    path "versions.yml"           , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

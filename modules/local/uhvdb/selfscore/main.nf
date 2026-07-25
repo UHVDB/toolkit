@@ -12,8 +12,6 @@ process UHVDB_SELFSCORE {
 
     output:
     tuple val(meta), path("*.selfscore.tsv.gz"), emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('uhvdb_selfscore'), eval('uhvdb_selfscore.py --version'), topic: versions, emit: versions_uhvdb_selfscore
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

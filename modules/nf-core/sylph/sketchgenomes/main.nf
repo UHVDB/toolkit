@@ -12,7 +12,6 @@ process SYLPH_SKETCHGENOMES {
 
     output:
     tuple val(meta), path('*.syldb'), emit: syldb
-    tuple val("${task.process}"), val('sylph'), eval('sylph -V | sed "s/sylph //g"'), topic: versions, emit: versions_sylph
 
     when:
     task.ext.when == null || task.ext.when

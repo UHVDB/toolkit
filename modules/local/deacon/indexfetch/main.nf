@@ -1,6 +1,8 @@
 process DEACON_INDEXFETCH {
-    tag "${params.deacon_index_name}"
+    tag "deacon 0.13.2"
     label 'process_low'
+    storeDir "${params.dbdir}/deacon/0.13.2"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
@@ -9,21 +11,18 @@ process DEACON_INDEXFETCH {
 
     output:
     path "*.idx", emit: idx
-    // tuple val("${task.process}"), val('deacon'), eval('deacon --version | head -n1 | sed "s/deacon //g"'), emit: versions_deacon, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     """
+    # download deacon index
     deacon \\
         index \\
         fetch \\
-        ${params.deacon_index_name}
+        panhuman-1
     """
 
     stub:
     """
-    touch ${params.deacon_index_name}.idx
+    touch panhuman-1.idx
     """
 }

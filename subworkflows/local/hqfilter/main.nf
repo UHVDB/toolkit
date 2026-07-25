@@ -1,5 +1,5 @@
 include { rmEmptyFastAs; rmEmptyTsvs; add_split; extractDigitBeforeExtension } from '../functions/main'
-include { TRTRIMMER                             } from '../../../modules/local/trtrimmer/main'
+include { FIND_CONCATENATE_TRTRIMMER            } from '../../../modules/local/find_concatenate_trtrimmer/main'
 include { FIND_CONCATENATE                      } from '../../../modules/nf-core/find/concatenate/main'
 include { VCLUST_CSVTK_SEQKIT                   } from '../../../modules/local/vclust_csvtk_seqkit/main'
 include { CSVTK_SEQKIT                          } from '../../../modules/local/csvtk_seqkit/main'
@@ -18,26 +18,16 @@ workflow HQFILTER {
 
     main:
     //
-    // MODULE: Trim DTRs from complete sequences
+    // MODULE: Combine and trim DTRs from complete sequences
     //
-    TRTRIMMER(
-        rmEmptyFastAs(complete_fna_gz)
+    FIND_CONCATENATE_TRTRIMMER(
+        rmEmptyFastAs(complete_fna_gz).map { _meta, fasta -> [ fasta] }.collect().map { fastas -> [ [ id: 'complete_viruses' ], fastas ] }
     )
-
-    //
-    // MODULE: Combine complete sequences
-    //
-    FIND_CONCATENATE(
-        TRTRIMMER.out.fna_gz.map { _meta, fasta -> [ fasta] }.collect().map { fastas -> [ [ id: 'complete_viruses' ], fastas ] }
-    )
-
-    // Define checkv database in case subworkflow is skipped
-    ch_checkv_db = checkv_db
 
     // Define vclust input if there are enough complete sequences for an update
-    ch_vclust_input = FIND_CONCATENATE.out.file_out
+    ch_vclust_input = FIND_CONCATENATE_TRTRIMMER.out.fna_gz
         .map { meta, fasta -> [ meta, fasta, fasta.countFasta() ] }
-        .filter { _meta, _fasta, count -> count >= params.min_checkv_update || workflow.stubRun }
+        .filter { _meta, _fasta, count -> count >= 2 || workflow.stubRun }
         .map { meta, fasta, _count -> [ meta, fasta ] }
 
     //
@@ -62,30 +52,27 @@ workflow HQFILTER {
         KMERDB_LZANI_CSVTK_SEQKIT.out.fna_gz,
         checkv_db
     )
-    ch_checkv_db = CHECKV_UPDATEDATABASE.out.checkv_db.map { _meta, db -> db }.collect()
+    // Prefer the updated DB when the update path ran; otherwise keep the original
+    // (update is skipped when fewer than 2 complete sequences are available).
+    ch_updated_checkv_db = CHECKV_UPDATEDATABASE.out.checkv_db
+        .map { _meta, db -> db }
+        .ifEmpty(checkv_db)
+        .collect()
 
     //
     // MODULE: Calculate completeness using updated database
     //
     CHECKV_COMPLETENESS(
         rmEmptyFastAs(virus_fna_gz),
-        ch_checkv_db
+        ch_updated_checkv_db
     )
 
     //
     // MODULE: Extract HQ sequences using new estimates
     //
-    ch_classify_for_hqfilter = classify_tsv_gz
-        .flatMap { meta, tsv_gz ->
-            [
-                [ meta + [ confidence: 'confident' ], tsv_gz ],
-                [ meta + [ confidence: 'uncertain', id: "${meta.id}_uncertain" ], tsv_gz ]
-            ]
-        }
-
     UHVDB_HQFILTER(
         virus_fna_gz
-            .join(ch_classify_for_hqfilter)
+            .join(classify_tsv_gz)
             .join(CHECKV_COMPLETENESS.out.tsv_gz)
     )
 

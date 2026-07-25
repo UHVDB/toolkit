@@ -21,7 +21,6 @@ process INSTRAIN_PROFILE {
     tuple val(meta), path("*.IS/output/*.IS_linkage.tsv")       , emit: linkage
     tuple val(meta), path("*.IS/output/*.IS_mapping_info.tsv")  , emit: mapping_info
     tuple val(meta), path("*.IS/output/*.IS_scaffold_info.tsv") , emit: scaffold_info
-    path "versions.yml"                                         , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -58,7 +57,6 @@ process INSTRAIN_PROFILE {
     touch ${prefix}.IS/output/${prefix}.IS_linkage.tsv
     touch ${prefix}.IS/output/${prefix}.IS_mapping_info.tsv
     touch ${prefix}.IS/output/${prefix}.IS_scaffold_info.tsv
-
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

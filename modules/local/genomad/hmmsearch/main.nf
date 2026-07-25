@@ -14,14 +14,6 @@ process GENOMAD_HMMSEARCH {
     output:
     tuple val(meta), path("*.hcfilter.fna.gz")  , emit: fna_gz
     tuple val(meta), path("*.hcfilter.tsv.gz")            , emit: tsv_gz
-    tuple val("${task.process}"), val('hmmer'), eval('hmmsearch --version | head -1 | cut -d " " -f 3'), topic: versions, emit: versions_hmmer
-    tuple val("${task.process}"), val('pyrodigal-gv'), eval('pyrodigal-gv --version | head -1 | cut -d " " -f 3'), topic: versions, emit: versions_pyrodigal_gv
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('biopython'), eval('python -c "import Bio; print(Bio.__version__)"'), topic: versions, emit: versions_biopython
-    tuple val("${task.process}"), val('uhvdb_hcfilter'), eval('uhvdb_hcfilter.py --version'), topic: versions, emit: versions_uhvdb_hcfilter
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

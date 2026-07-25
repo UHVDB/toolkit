@@ -1,5 +1,8 @@
 process GENOMAD_DOWNLOADHALLMARKS {
     label 'process_single'
+    tag "genomad_hallmarks 1.9"
+    storeDir "${params.dbdir}/genomad_hallmarks/1.9"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -9,19 +12,14 @@ process GENOMAD_DOWNLOADHALLMARKS {
     output:
     path "genomad_1_9_hallmarks.hmm"    , emit: hmm
     path "genomad_metadata_v1.9.tsv.gz" , emit: tsv_gz
-    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
-    // tuple val("${task.process}"), val('csvtk'), eval('csvtk version | sed -e "s/csvtk v//g"'), emit: versions_csvtk, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     """
-    ### Download geNomad data
+    # download geNomad data
     wget https://zenodo.org/records/14886553/files/genomad_hmm_v1.9.tar.gz?download=1 -O genomad_hmm_v1.9.tar.gz
     wget https://zenodo.org/records/14886553/files/genomad_metadata_v1.9.tsv.gz?download=1 -O genomad_metadata_v1.9.tsv.gz
 
-    ### Identify hallmarks
+    # identify hallmarks
     csvtk filter2 \\
         genomad_metadata_v1.9.tsv.gz \\
         --tabs \\
@@ -34,14 +32,14 @@ process GENOMAD_DOWNLOADHALLMARKS {
 
     sed 's|^|genomad_hmm_v1.9/|g; s|\$|.hmm|g' filtered_genomad.txt > hallmark_hmms.txt
 
-    ### Extract hallmarks
+    # extract hallmarks
     gunzip genomad_hmm_v1.9.tar.gz
     tar -xvf genomad_hmm_v1.9.tar --files-from hallmark_hmms.txt
 
-    ### Combine hallmarks
+    # combine hallmarks
     cat genomad_hmm_v1.9/*.hmm > genomad_1_9_hallmarks.hmm
 
-    ### Cleanup
+    # cleanup
     rm -rf genomad_hmm_v1.9.tar.gz genomad_hmm_v1.9.tar filtered_genomad.txt hallmark_hmms.txt genomad_hmm_v1.9/
     """
 

@@ -20,8 +20,6 @@ process UHVDB_ANIREPS {
     tuple val(meta), path("*.info.tsv.gz")     , emit: tsv_gz
     tuple val(meta), path("*.new_reps.fna.gz") , emit: new_fna_gz
     tuple val(meta), path("*.old_reps.fna.gz") , emit: old_fna_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('uhvdb_anireps'), eval('uhvdb_anireps.py --version'), topic: versions, emit: versions_uhvdb_anireps
  
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

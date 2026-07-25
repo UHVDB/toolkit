@@ -16,12 +16,6 @@ process UHVDB_CLASSIFY {
     tuple val(meta), path("*.uncertain_uhvdb_viruses.fna.gz"), emit: uncertain_fna_gz
     tuple val(meta), path("*.uhvdb_complete.fna.gz")          , emit: complete_fna_gz
     tuple val(meta), path("*.uhvdb_virus_class.tsv.gz"), emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('biopython'), eval('python -c "import Bio; print(Bio.__version__)"'), topic: versions, emit: versions_biopython
-    tuple val("${task.process}"), val('uhvdb_classify'), eval('uhvdb_classify.py --version'), topic: versions, emit: versions_uhvdb_classify
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def source_db = meta.source_db ?: 'no_source_db'

@@ -56,7 +56,7 @@ def parse_args(args=None):
         "--cluster_info",
         help="Output TSV with cluster info.",
     )
-    parser.add_argument('--version', action='version', version='1.1.0')
+    parser.add_argument('--version', action='version', version='1.2.0')
     return parser.parse_args(args)
 
 
@@ -116,6 +116,38 @@ def old_sequence_ids(metadata_df, cluster_level):
     )
 
 
+def dedupe_by_uhvdb_id(df):
+    """
+    Collapse to one row per uhvdb_id.
+
+    When the frame has completeness_method, favour DTR rows so metadata
+    duplicates that disagree on method do not silently drop circular genomes.
+    Otherwise favour rows with a non-null aai_expected_length.
+    """
+    keep_cols = df.columns
+    if 'completeness_method' in keep_cols:
+        ranked = df.with_columns(
+            pl.col('completeness_method')
+            .cast(pl.String)
+            .str.contains('DTR')
+            .fill_null(False)
+            .alias('_prefer')
+        )
+    elif 'aai_expected_length' in keep_cols:
+        ranked = df.with_columns(
+            pl.col('aai_expected_length').is_not_null().alias('_prefer')
+        )
+    else:
+        ranked = df.with_columns(pl.lit(False).alias('_prefer'))
+
+    return (
+        ranked
+        .sort('_prefer', descending=True, maintain_order=True)
+        .unique(subset=['uhvdb_id'], keep='first', maintain_order=True)
+        .select(keep_cols)
+    )
+
+
 def load_metadata(classify_tsv, completeness, metadata_df, clusters):
     classify_cols = [
         'uhvdb_id',
@@ -125,31 +157,42 @@ def load_metadata(classify_tsv, completeness, metadata_df, clusters):
         'viral_genes',
     ]
 
-    # read_csv(columns=...) keeps file column order; select() enforces a shared schema
-    classify_df = pl.concat(
-        [
-            pl.read_csv(
-                classify_tsv,
-                separator='\t',
-                ignore_errors=True,
-                null_values=['NA'],
-                columns=classify_cols,
-            ).select(classify_cols),
-            metadata_df.select(classify_cols),
-        ],
-        how='vertical_relaxed',
+    # Fresh classify values take precedence over stored metadata. Both sources
+    # can contain duplicate uhvdb_id rows; joining without collapsing them
+    # creates a per-ID cartesian product that inflates cluster metrics and
+    # can change DTR vs AAI election outcomes.
+    fresh_classify = dedupe_by_uhvdb_id(
+        pl.read_csv(
+            classify_tsv,
+            separator='\t',
+            ignore_errors=True,
+            null_values=['NA'],
+            columns=classify_cols,
+        ).select(classify_cols)
     )
+    meta_classify = dedupe_by_uhvdb_id(metadata_df.select(classify_cols))
+    # Fresh first: unique(keep='first') preserves run values over metadata.
+    classify_df = (
+        pl.concat([fresh_classify, meta_classify], how='vertical_relaxed')
+        .unique(subset=['uhvdb_id'], keep='first', maintain_order=True)
+    )
+
     completeness_cols = ['uhvdb_id', 'aai_expected_length']
-    completeness_df = pl.concat(
-        [
-            pl.read_csv(
-                completeness,
-                separator='\t',
-                columns=completeness_cols,
-                ignore_errors=True,
-            ).select(completeness_cols),
-            metadata_df.select(completeness_cols),
-        ]
+    fresh_completeness = dedupe_by_uhvdb_id(
+        pl.read_csv(
+            completeness,
+            separator='\t',
+            columns=completeness_cols,
+            ignore_errors=True,
+            null_values=['NA'],
+        ).select(completeness_cols)
+    )
+    meta_completeness = dedupe_by_uhvdb_id(
+        metadata_df.select(completeness_cols)
+    )
+    completeness_df = (
+        pl.concat([fresh_completeness, meta_completeness], how='vertical_relaxed')
+        .unique(subset=['uhvdb_id'], keep='first', maintain_order=True)
     )
 
     # Join cluster assignments instead of replace_strict on a large Python dict
@@ -158,7 +201,7 @@ def load_metadata(classify_tsv, completeness, metadata_df, clusters):
             'uhvdb_id': list(clusters.keys()),
             'cluster_id': list(clusters.values()),
         }
-    )
+    ).unique(subset=['uhvdb_id'], keep='first', maintain_order=True)
 
     mine_report = (
         classify_df
@@ -224,11 +267,12 @@ def main(args=None):
     )
 
     # 1. calculate median length and size of each cluster
+    # Count and median over unique sequences, not duplicated metadata rows.
     cluster_metrics = mine_report.group_by('cluster_id').agg(
         [
             pl.col('length').median().alias('median_length'),
             pl.col('viral_genes').max().alias('max_viral_genes'),
-            pl.col('uhvdb_id').len().alias('num_seqs'),
+            pl.col('uhvdb_id').n_unique().alias('num_seqs'),
         ]
     )
 
@@ -243,9 +287,12 @@ def main(args=None):
         .get_column('cluster_id')
     )
 
-    cluster_reps = mine_report.filter(
-        pl.col('cluster_id').is_in(singleton_cluster_ids)
-    ).select(['uhvdb_id', 'cluster_id'])
+    cluster_reps = (
+        mine_report
+        .filter(pl.col('cluster_id').is_in(singleton_cluster_ids))
+        .select(['uhvdb_id', 'cluster_id'])
+        .unique(subset=['uhvdb_id', 'cluster_id'], maintain_order=True)
+    )
 
     # 3. assign longest DTRs as vOTU representatives
     assigned_cluster_ids = cluster_reps.get_column('cluster_id')
@@ -342,6 +389,7 @@ def main(args=None):
                 'completeness_method',
             ]
         )
+        .unique(subset=['uhvdb_id'], maintain_order=True)
         .join(cluster_reps, on='cluster_id', how='full', suffix='_rep')
         .drop('cluster_id_rep')
         .rename({'uhvdb_id_rep': f'{args.cluster_level}_rep'})

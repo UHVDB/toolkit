@@ -13,8 +13,6 @@ process SPRING_SYLPH {
 
     output:
     tuple val(meta), path("*.profile.tsv")  , emit: tsv
-    tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
-    tuple val("${task.process}"), val('sylph'), eval('sylph -V | sed "s/sylph //g"'), topic: versions, emit: versions_sylph
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

@@ -11,3 +11,4 @@ dependencies:
 - conda-forge::aria2=1.37.0
 - conda-forge::biopython=1.87
 - conda-forge::polars=1.40.1
+- bioconda::hmmer=3.4

@@ -13,7 +13,6 @@ process SYLPHTAX_TAXPROF {
 
     output:
     tuple val(meta), path("*.sylphmpa"), emit: taxprof_output
-    tuple val("${task.process}"), val('sylph-tax'), eval("sylph-tax --version 2>&1 | tail -1"), emit: versions_sylphtax, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -15,11 +15,6 @@ process CSVTK_SEQKIT {
 
     output:
     tuple val(meta), path("*.fna.gz"), emit: fna_gz
-    tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), emit: versions_csvtk, topic: versions
-    tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed 's/^.*v//'"), emit: versions_seqkit, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def prefix = "${meta.id}.${prefix_suffix}"

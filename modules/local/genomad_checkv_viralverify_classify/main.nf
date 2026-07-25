@@ -8,7 +8,9 @@ String genomadCheckvViralverifyClassify(
     String dtr_arg,
     String source_db,
     String db_type,
-    String body_site
+    String body_site,
+    String hmm,
+    String hmm_tsv_gz
 ) {
     def genomad_filter = [
         '( ( $virus_score >= 0.7 && $length >= 2000 ) || ( $taxonomy =~ "Inoviridae" ) )',
@@ -25,7 +27,7 @@ String genomadCheckvViralverifyClassify(
     ].join(' ')
 
     return """
-    ### Run geNomad
+    # run genomad
     genomad \\
         end-to-end \\
         ${genomad_fasta} \\
@@ -37,6 +39,7 @@ String genomadCheckvViralverifyClassify(
     gzip -c genomad_results/*_summary/*_virus_summary.tsv > ${prefix}_virus_summary.tsv.gz
     gzip -c genomad_results/*_summary/*_virus_genes.tsv > ${prefix}_virus_genes.tsv.gz
 
+    # filter genomad results
     csvtk filter2 \\
         ${prefix}_virus_summary.tsv.gz \\
         --num-cpus ${cpus} \\
@@ -51,7 +54,7 @@ String genomadCheckvViralverifyClassify(
         --pattern-file ${prefix}_filtered_genomad.txt \\
         --out-file ${prefix}_virus.fna.gz
 
-    ### Run CheckV
+    # run checkv
     checkv \\
         end_to_end \\
         -t ${cpus} \\
@@ -62,6 +65,7 @@ String genomadCheckvViralverifyClassify(
     gzip -c ${prefix}_checkv/quality_summary.tsv > ${prefix}_quality_summary.tsv.gz
     gzip -c ${prefix}_checkv/completeness.tsv > ${prefix}_completeness.tsv.gz
 
+    # fix provirus names
     seqkit replace \\
         ${prefix}_checkv/proviruses.fna \\
         --pattern "(_\\d\\s.*)" \\
@@ -71,6 +75,7 @@ String genomadCheckvViralverifyClassify(
 
     cat ${prefix}_proviruses_fix.fna ${prefix}_checkv/viruses.fna > ${prefix}_viruses.fna
 
+    # filter checkv results
     csvtk filter2 \\
         ${prefix}_checkv/completeness.tsv \\
         --num-cpus ${cpus} \\
@@ -87,7 +92,7 @@ String genomadCheckvViralverifyClassify(
 
     mv ${prefix}_viruses_filtered.fna ${prefix}_viruses.fna
 
-    ### Run ViralVerify
+    # run viralverify
     viralverify \\
         -f ${prefix}_viruses.fna \\
         --hmm ${viralverify_db} \\
@@ -97,7 +102,7 @@ String genomadCheckvViralverifyClassify(
     gzip -c ${prefix}_viralverify/${prefix}_viruses_result_table.csv > ${prefix}_result_table.csv.gz
     gzip -c ${prefix}_viralverify/${prefix}_viruses_domtblout > ${prefix}_domtblout.gz
 
-    ### Run UHVDB classify
+    # run uhvdb classify
     uhvdb_classify.py \\
         --fasta ${prefix}_viruses.fna \\
         --virus_summary ${prefix}_virus_summary.tsv.gz \\
@@ -108,16 +113,45 @@ String genomadCheckvViralverifyClassify(
         ${dtr_arg} \\
         --output_confident_fasta ${prefix}.confident_uhvdb_viruses.fna \\
         --output_uncertain_fasta ${prefix}.uncertain_uhvdb_viruses.fna \\
-        --output_complete_fasta ${prefix}.uhvdb_complete.fna \\
-        --output_tsv ${prefix}.uhvdb_virus_class.tsv \\
+        --output_complete_fasta ${prefix}.complete.fna \\
+        --output_tsv ${prefix}.classify.tsv \\
         --source_db ${source_db} \\
         --db_type ${db_type} \\
         --body_site ${body_site}
 
-    gzip ${prefix}.confident_uhvdb_viruses.fna
-    gzip ${prefix}.uncertain_uhvdb_viruses.fna
-    gzip ${prefix}.uhvdb_complete.fna
-    gzip ${prefix}.uhvdb_virus_class.tsv
+    # skip pyrodigal-gv / hmmsearch / hcfilter when uncertain fasta has no sequences
+    if grep -q '^>' ${prefix}.uncertain_uhvdb_viruses.fna 2>/dev/null; then
+        pyrodigal-gv \\
+            -i ${prefix}.uncertain_uhvdb_viruses.fna \\
+            -a ${prefix}.pyrodigalgv.faa \\
+            --jobs ${cpus} &> /dev/null
+
+        hmmsearch --noali \\
+            -o /dev/null \\
+            -E 1e-5 \\
+            --tblout ${prefix}_v_genomad_hallmarks.tbl \\
+            --cpu ${cpus} \\
+            ${hmm} \\
+            ${prefix}.pyrodigalgv.faa \\
+            2> hmmsearch.log
+
+        uhvdb_hcfilter.py \\
+            --hmmsearch_tbl ${prefix}_v_genomad_hallmarks.tbl \\
+            --genomad_tsv ${hmm_tsv_gz} \\
+            --fasta ${prefix}.uncertain_uhvdb_viruses.fna \\
+            --output_tsv ${prefix}.hcfilter.tsv \\
+            --output_fasta ${prefix}.hcfilter.fna
+    else
+        touch ${prefix}.hcfilter.fna
+        printf 'contig_id\\tvirus_hallmarks\\tplasmid_hallmarks\\n' > ${prefix}.hcfilter.tsv
+    fi
+
+    cat ${prefix}.confident_uhvdb_viruses.fna ${prefix}.hcfilter.fna > ${prefix}.confident.fna
+
+    gzip ${prefix}.confident.fna
+    gzip ${prefix}.complete.fna
+    gzip ${prefix}.classify.tsv
+    gzip ${prefix}.hcfilter.tsv
 
     ### Cleanup
     rm -rf genomad_results ${prefix}_checkv ${prefix}_viralverify tmp \\
@@ -125,7 +159,10 @@ String genomadCheckvViralverifyClassify(
         ${prefix}_filtered_genomad.txt ${prefix}_filtered_checkv.txt \\
         ${prefix}_virus_summary.tsv.gz ${prefix}_virus_genes.tsv.gz \\
         ${prefix}_quality_summary.tsv.gz ${prefix}_completeness.tsv.gz \\
-        ${prefix}_result_table.csv.gz ${prefix}_domtblout.gz
+        ${prefix}_result_table.csv.gz ${prefix}_domtblout.gz \\
+        ${prefix}.confident_uhvdb_viruses.fna ${prefix}.uncertain_uhvdb_viruses.fna \\
+        ${prefix}.pyrodigalgv.faa ${prefix}.hcfilter.fna \\
+        ${prefix}_v_genomad_hallmarks.tbl hmmsearch.log
     """
 }
 
@@ -135,8 +172,8 @@ process GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/7e/7e93184e5d9fde3a001a2e44a8471db42262f14ca6dbf81d9256d789e96bdb71/data'
-        : 'community.wave.seqera.io/library/genomad_checkv_viralverify_seqkit_pruned:c73505fd1e8794f8'}"
+        ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/b2/b21d6b0b33b8a74f05d75a717b01367cf9baed680c31e7af5c09599f62e05243/data'
+        : 'community.wave.seqera.io/library/genomad_checkv_viralverify_seqkit_pruned:e8ba75f322d6bf62'}"
 
     input:
     tuple val(meta), path(fasta)
@@ -144,18 +181,14 @@ process GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
     path(checkv_db)
     path(viralverify_db)
     path(dtr_sequences_txt)
+    path(hmm)
+    path(hmm_tsv_gz)
 
     output:
-    tuple val(meta), path("*.confident_uhvdb_viruses.fna.gz")   , emit: confident_fna_gz
-    tuple val(meta), path("*.uncertain_uhvdb_viruses.fna.gz")   , emit: uncertain_fna_gz
-    tuple val(meta), path("*.uhvdb_complete.fna.gz")            , emit: complete_fna_gz
-    tuple val(meta), path("*.uhvdb_virus_class.tsv.gz")         , emit: tsv_gz
-    tuple val("${task.process}"), val('genomad'), eval("genomad --version 2>&1 | sed 's/^.*geNomad, version //; s/ .*//'"), topic: versions, emit: versions_genomad
-    tuple val("${task.process}"), val('checkv'), eval("checkv -h 2>&1 | sed '1!d;s/^.*CheckV v//;s/:.*//'"), topic: versions, emit: versions_checkv
-    tuple val("${task.process}"), val('viralverify'), val('1.1'), emit: versions_viralverify, topic: versions
-    tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed 's/^.*v//'"), emit: versions_seqkit, topic: versions
-    tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), topic: versions, emit: versions_csvtk
-    tuple val("${task.process}"), val('uhvdb_classify'), eval('uhvdb_classify.py --version'), topic: versions, emit: versions_uhvdb_classify
+    tuple val(meta), path("*.confident.fna.gz")     , emit: confident_fna_gz
+    tuple val(meta), path("*.complete.fna.gz")      , emit: complete_fna_gz
+    tuple val(meta), path("*.classify.tsv.gz")      , emit: classify_tsv_gz
+    tuple val(meta), path("*.hcfilter.tsv.gz")      , emit: hcfilter_tsv_gz
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
@@ -175,7 +208,9 @@ process GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
         dtr_arg,
         source_db,
         db_type,
-        body_site
+        body_site,
+        hmm.toString(),
+        hmm_tsv_gz.toString()
     )
     """
     ${classify_cmd}
@@ -184,9 +219,9 @@ process GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    echo "" | gzip > ${prefix}.confident_uhvdb_viruses.fna.gz
-    echo "" | gzip > ${prefix}.uncertain_uhvdb_viruses.fna.gz
-    echo "" | gzip > ${prefix}.uhvdb_complete.fna.gz
-    echo "" | gzip > ${prefix}.uhvdb_virus_class.tsv.gz
+    echo "" | gzip > ${prefix}.confident.fna.gz
+    echo "" | gzip > ${prefix}.complete.fna.gz
+    echo "" | gzip > ${prefix}.classify.tsv.gz
+    echo "" | gzip > ${prefix}.hcfilter.tsv.gz
     """
 }

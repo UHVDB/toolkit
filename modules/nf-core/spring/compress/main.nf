@@ -12,8 +12,6 @@ process SPRING_COMPRESS {
 
     output:
     tuple val(meta), path("*.spring"), emit: spring
-    tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
-    // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
 
     when:
     task.ext.when == null || task.ext.when

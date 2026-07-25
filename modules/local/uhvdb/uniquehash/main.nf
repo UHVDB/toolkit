@@ -15,9 +15,6 @@ process UHVDB_UNIQUEHASH {
     tuple val(meta), path("uhvdb_seqhasher.tsv.gz"), emit: tsv_gz
     tuple val(meta), path("uhvdb_id_map.tsv.gz"), emit: id_map_tsv_gz
     tuple val(meta), path("*.fna.gz"), emit: fna_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('biopython'), eval('python -c "import Bio; print(Bio.__version__)"'), topic: versions, emit: versions_biopython
-    tuple val("${task.process}"), val('uhvdb_uniquehash'), eval('uhvdb_uniquehash.py --version'), topic: versions, emit: versions_uhvdb_uniquehash
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

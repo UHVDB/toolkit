@@ -12,9 +12,6 @@ process VCLUST_CSVTK_SEQKIT {
 
     output:
     tuple val(meta), path("*.reps.fna.gz")        , emit: fna_gz
-    tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), emit: versions_csvtk, topic: versions
-    tuple val("${task.process}"), val('vclust'), eval("vclust --version"), emit: versions_vclust, topic: versions
-    tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed -e 's/seqkit v//g'"), emit: versions_seqkit, topic: versions
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

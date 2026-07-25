@@ -13,8 +13,6 @@ process UHVDB_REPGRAPH {
 
     output:
     tuple val(meta), path("*.gani.tsv.gz")   , emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('uhvdb_repgraph'), eval('uhvdb_repgraph.py --version'), topic: versions, emit: versions_uhvdb_repgraph
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}.newgraph"

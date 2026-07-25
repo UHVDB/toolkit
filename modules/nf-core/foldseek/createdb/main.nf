@@ -12,7 +12,6 @@ process FOLDSEEK_CREATEDB {
 
     output:
     tuple val(meta), path("${prefix}"), emit: db
-    tuple val("${task.process}"), val('foldseek'), eval("foldseek --help |& sed -n 's/.*Version: //p'"), emit: versions_foldseek, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

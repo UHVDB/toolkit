@@ -1,25 +1,18 @@
-process SRACHA_FASTP_DEACON_SPRING {
+process SRACHA_FASTP_DEACON_MEGAHIT {
     tag "${meta.id}"
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/bd/bdc4913331666b89a8cfe1c04ea5a4dd493b597a91001945bbca125c8c67e438/data' :
-        'community.wave.seqera.io/library/deacon_fastp_spring_sracha:88eaf78239e0c640' }"
-    // xsra is installed in the container via cargo (not available on bioconda)
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/cd/cd58329d0cc42aa2ab0ad4ce92bee4565b9b170edbe2c928b1c0adc7356412d5/data' :
+        'community.wave.seqera.io/library/deacon_fastp_sracha_megahit_gzip:2df8c885cea541a4' }"
 
     input:
     tuple val(meta) , val(acc)
     path(index)
 
     output:
-    tuple val(meta), path("*.spring*") , emit: spring
-    tuple val(meta), path("*.read*")   , emit: read_count
-    tuple val("${task.process}"), val('xsra'), eval('xsra --version 2>&1 | sed -e "s/xsra //g"'), emit: versions_xsra, topic: versions
-    tuple val("${task.process}"), val('fastp'), eval('fastp --version 2>&1 | sed -e "s/fastp //g"'), emit: versions_fastp, topic: versions
-    tuple val("${task.process}"), val('deacon'), eval('deacon --version | head -n1 | sed "s/deacon //g"'), emit: versions_deacon, topic: versions
-    tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
-    // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
+    tuple val(meta), path("*.contigs.fna.gz")  , emit: fna_gz
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
@@ -39,17 +32,14 @@ process SRACHA_FASTP_DEACON_SPRING {
         fastp_reads_out="--out1 ${acc}_R1.fastp.fastq.gz --out2 ${acc}_R2.fastp.fastq.gz"
         deacon_reads_in="${acc}_R1.fastp.fastq.gz ${acc}_R2.fastp.fastq.gz"
         deacon_reads_out="--output ${acc}_R1.deacon.fastq.gz --output2 ${acc}_R2.deacon.fastq.gz"
-        spring_input="${acc}_R1.deacon.fastq.gz ${acc}_R2.deacon.fastq.gz"
-        touch ${prefix}.read1
-        touch ${prefix}.read2
+        megahit_input="-1 ${acc}_R1.deacon.fastq.gz -2 ${acc}_R2.deacon.fastq.gz"
     else
         mv ${acc}/*_1.fastq.gz ${acc}/${acc}.fastq.gz
         fastp_reads_in="--in1 ${acc}/${acc}.fastq.gz"
         fastp_reads_out="--out1 ${acc}.fastp.fastq.gz"
         deacon_reads_in="${acc}.fastp.fastq.gz"
         deacon_reads_out="--output ${acc}.deacon.fastq.gz"
-        spring_input="${acc}.deacon.fastq.gz"
-        touch ${prefix}.read1
+        megahit_input="-r ${acc}.deacon.fastq.gz"
     fi
 
     ### Run fastp
@@ -71,24 +61,23 @@ process SRACHA_FASTP_DEACON_SPRING {
 
     rm -rf *.fastp.fastq.gz
 
-    ### Run spring
-    spring \\
-        --compress \\
-        --input \${spring_input} \\
-        --num-threads ${task.cpus} \\
-        --quality-opts ill_bin \\
-        --gzipped-fastq \\
-        --output-file ${prefix}.spring
+    ### Megahit assembly
+    megahit \\
+        -t ${task.cpus} \\
+        --min-contig-len 2000 \\
+        \${megahit_input} \\
+        --out-prefix ${prefix}
+
+    ### Compress
+    gzip -c megahit_out/*.fa > ${prefix}.contigs.fna.gz
 
     ### Cleanup to save disk
-    rm -rf *deacon*.fastq.gz *.fastp.html *.fastp.json ${acc}/
+    rm -rf *deacon*.fastq.gz *.fastp.html *.fastp.json ${acc}/ megahit_out/
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    touch ${prefix}.spring
-    touch ${prefix}.read1
-    touch ${prefix}.read2
+    echo "" | gzip > ${prefix}.contigs.fna.gz
     """
 }

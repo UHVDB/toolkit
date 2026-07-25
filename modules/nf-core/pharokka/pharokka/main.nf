@@ -19,7 +19,6 @@ process PHAROKKA_PHAROKKA {
     tuple val(meta), path("${prefix}_pharokka/${prefix}_top_hits_vfdb.tsv")                 , emit: vfdb                    , optional: true
     tuple val(meta), path("${prefix}_pharokka/${prefix}_top_hits_mash_inphared.tsv")        , emit: mash                    , optional: true
     tuple val(meta), path("${prefix}_pharokka/${prefix}_genome_terminase_reoriented.fasta") , emit: reoriented              , optional: true
-    path "versions.yml"                                                                     , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

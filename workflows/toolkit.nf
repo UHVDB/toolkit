@@ -3,27 +3,25 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { PREPROCESS             } from '../subworkflows/local/preprocess'
-include { ASSEMBLE               } from '../subworkflows/local/assemble'
-include { CHECKV_DOWNLOAD        } from '../modules/local/checkv/download'
-include { CLASSIFY               } from '../subworkflows/local/classify'
-include { HQFILTER               } from '../subworkflows/local/hqfilter'
-include { HCFILTER               } from '../subworkflows/local/hcfilter'
-include { UHVDB_DOWNLOAD         } from '../modules/local/uhvdb/download'
-include { DEREPLICATE            } from '../subworkflows/local/dereplicate'
-include { ANICLUSTER             } from '../subworkflows/local/anicluster'
+
+include { UHVDB_DOWNLOAD                } from '../modules/local/uhvdb/download'
+include { DEACON_INDEXFETCH             } from '../modules/local/deacon/indexfetch'
+include { CHECKV_DOWNLOAD               } from '../modules/local/checkv/download'
+include { SRACHA_FASTP_DEACON_MEGAHIT   } from '../modules/local/sracha_fastp_deacon_megahit'
+include { FASTP_DEACON_MEGAHIT          } from '../modules/local/fastp_deacon_megahit'
+include { ASSEMBLY                      } from '../subworkflows/local/assembly'
+include { CLASSIFY                      } from '../subworkflows/local/classify'
+include { HQFILTER                      } from '../subworkflows/local/hqfilter'
+include { DEREPLICATE                   } from '../subworkflows/local/dereplicate'
+include { ANICLUSTER                    } from '../subworkflows/local/anicluster'
 include { AAICLUSTER             } from '../subworkflows/local/aaicluster'
-include { REFERENCEANALYZE       } from '../subworkflows/local/referenceanalyze'
-include { paramsSummaryMap       } from 'plugin/nf-schema'
-include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_toolkit_pipeline'
-include { add_split; rmEmptyFastAs             } from '../subworkflows/local/functions/main'
-include { CSVTK_SEQKIT           } from '../modules/local/csvtk_seqkit/main'
-include { SEQKIT_SPLIT2          } from '../modules/local/seqkit/split2/main'
-include { PYRODIGALGV           } from '../modules/local/pyrodigalgv/main'
-include { TAXONOMY              } from '../subworkflows/local/taxonomy'
+// include { REFERENCEANALYZE       } from '../subworkflows/local/referenceanalyze'
+include { paramsSummaryMap              } from 'plugin/nf-schema'
+include { paramsSummaryMultiqc          } from '../subworkflows/nf-core/utils_nfcore_pipeline'
+include { softwareVersionsToYAML        } from '../subworkflows/nf-core/utils_nfcore_pipeline'
+include { methodsDescriptionText        } from '../subworkflows/local/utils_nfcore_toolkit_pipeline'
+include { MULTIQC                       } from '../modules/nf-core/multiqc/main'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -34,7 +32,7 @@ workflow TOOLKIT {
 
     take:
     reads   // channel: [ [ meta ], read_1, read_2 ]
-    sra     // channel: [ [ meta ], sra ]
+    sras    // channel: [ [ meta ], sra ]
     fastas  // channel: [ [ meta ], fna ]
     multiqc_config
     multiqc_logo
@@ -50,7 +48,6 @@ workflow TOOLKIT {
     // MODULE: Download UHVDB database
     //
     UHVDB_DOWNLOAD()
-    // TODO: Change location to S3 bucket
     ch_uhvdb_metadata_tsv_gz = UHVDB_DOWNLOAD.out.metadata_tsv_gz.collect()
     ch_uhvdb_metadata_sylphtax_tsv_gz = UHVDB_DOWNLOAD.out.metadata_sylphtax_tsv_gz.collect()
     ch_uhvdb_unique_reps_fna_gz = UHVDB_DOWNLOAD.out.unique_reps_fna_gz.collect()
@@ -60,38 +57,30 @@ workflow TOOLKIT {
     ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
     ch_uhvdb_protein_annotations_tsv_gz = UHVDB_DOWNLOAD.out.protein_annotations_tsv_gz.collect()
 
-    if ( params.run_update || params.run_analyze ) {
-        //
-        // SUBWORKFLOW: Download and preprocess reads
-        //
-        PREPROCESS(
-            params.deacon_index_name,
-            reads,
-            sra
-        )
-        ch_spring = PREPROCESS.out.spring
-    }
-
-    if ( params.run_update ) {
-        //
-        // SUBWORKFLOW: Assemble reads into contigs
-        //
-        ASSEMBLE(
-            fastas,
-            PREPROCESS.out.spring
-        )
-        ch_spring = ch_spring.mix(ASSEMBLE.out.spring)
-        ch_fastas = fastas.mix(ASSEMBLE.out.assembly_fna_gz)
-    }
+    //
+    // MODULE: Download deacon index
+    //
+    DEACON_INDEXFETCH()
+    ch_deacon_idx = DEACON_INDEXFETCH.out.idx.first()
 
 
-    if ( params.run_update || params.run_assembly_analyze ) {
+    if ( params.run_update  ) {
         //
         // MODULE: Download UHVDB-CheckV database
         //
         CHECKV_DOWNLOAD()
         ch_checkv_db = CHECKV_DOWNLOAD.out.checkv_db.first()
 
+        //
+        // SUBWORKFLOW: Assemble reads
+        //
+        ASSEMBLY(
+            reads,
+            sras,
+            ch_deacon_idx
+        )
+        ch_fastas = fastas.mix(ASSEMBLY.out.fna_gz)
+        
         // Create channel from DTR sequences file
         def ch_dtr_sequences = params.dtr_sequences_file
             ? channel.fromPath(params.dtr_sequences_file).first()
@@ -105,31 +94,22 @@ workflow TOOLKIT {
             ch_dtr_sequences,
             ch_checkv_db
         )
-    }
 
-    if ( params.run_update ) {
         //
         // SUBWORKFLOW: Update CheckV's database and re-run Checkv to identify HQ viruses
         //
         HQFILTER(
-            CLASSIFY.out.confident_fna_gz.mix(CLASSIFY.out.uncertain_fna_gz),
+            CLASSIFY.out.confident_fna_gz,
             CLASSIFY.out.complete_fna_gz,
-            CLASSIFY.out.tsv_gz,
+            CLASSIFY.out.classify_tsv_gz,
             ch_checkv_db
-        )
-
-        //
-        // SUBWORKFLOW: Identify confident viruses from HQ viruses
-        //
-        HCFILTER(
-            HQFILTER.out.fna_gz,
         )
 
         //
         // SUBWORKFLOW: Dereplicate high-quality, confident viruses
         //
         DEREPLICATE(
-            HCFILTER.out.fna_gz,
+            HQFILTER.out.fna_gz,
             CLASSIFY.out.combined_tsv_gz,
             HQFILTER.out.combined_tsv_gz,
             ch_uhvdb_unique_reps_fna_gz,
@@ -227,36 +207,18 @@ workflow TOOLKIT {
 
     }
 
-    if ( params.run_analyze ) {
-        //
-        // SUBWORKFLOW: Analyze viruses
-        //
-        REFERENCEANALYZE(
-            ch_spring,
-            ch_uhvdb_unique_reps_fna_gz,
-            ch_uhvdb_metadata_tsv_gz,
-            ch_uhvdb_metadata_sylphtax_tsv_gz,
-            ch_uhvdb_protein_annotations_tsv_gz
-        )
-    }
-
-    if ( params.run_assembly_analyze ) {
-        //
-        // SUBWORKFLOW: Analyze viruses using assembly data
-        //
-    }
-
-    if ( params.run_instrain ) {
-        //
-        // SUBWORKFLOW: Analyze  + hosts using instrain
-        //
-    }
-
-    if ( params.run_pilea ) {
-        //
-        // SUBWORKFLOW: Analyze growth rate using pilea
-        //
-    }
+    // if ( params.run_analyze ) {
+    //     //
+    //     // SUBWORKFLOW: Analyze viruses
+    //     //
+    //     REFERENCEANALYZE(
+    //         ch_spring,
+    //         ch_uhvdb_unique_reps_fna_gz,
+    //         ch_uhvdb_metadata_tsv_gz,
+    //         ch_uhvdb_metadata_sylphtax_tsv_gz,
+    //         ch_uhvdb_protein_annotations_tsv_gz
+    //     )
+    // }
 
     //
     // Collate and save software versions

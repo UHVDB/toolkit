@@ -12,8 +12,6 @@ process UHVDB_NORMSCORE {
 
     output:
     tuple val(meta), path("*.normscore.tsv.gz"), emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('uhvdb_normscore'), eval('uhvdb_normscore.py --version'), topic: versions, emit: versions_uhvdb_normscore
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

@@ -17,7 +17,6 @@ process INSTRAIN_COMPARE {
     tuple val(meta), path("*.IS_compare/output/*.IS_compare_pooled_SNV_data.tsv")       , emit: pooled_snv
     tuple val(meta), path("*.IS_compare/output/*.IS_compare_pooled_SNV_data_keys.tsv")  , emit: snv_keys
     tuple val(meta), path("*.IS_compare/output/*.IS_compare_pooled_SNV_info.tsv")       , emit: snv_info
-    path "versions.yml"                                                                 , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

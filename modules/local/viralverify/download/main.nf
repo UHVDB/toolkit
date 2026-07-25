@@ -1,5 +1,8 @@
 process VIRALVERIFY_DOWNLOAD {
     label 'process_single'
+    tag "viralverify 1.1"
+    storeDir "${params.dbdir}/viralverify/1.1"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -8,10 +11,6 @@ process VIRALVERIFY_DOWNLOAD {
 
     output:
     path "nbc_hmms.hmm", emit: viralverify_db
-    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     """

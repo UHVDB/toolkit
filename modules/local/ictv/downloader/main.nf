@@ -8,7 +8,6 @@ process ICTV_DOWNLOADER {
 
     output:
     path("*.faa.gz")                      , emit: faa_gz
-    // tuple val("${task.process}"), val('VMR_to_fasta'), eval('VMR_to_fasta.py --version'), topic: versions, emit: versions_VMR_to_fasta
 
     script:
     """

@@ -17,7 +17,6 @@ process COVERM_CONTIG {
     output:
     tuple val(meta), path('*.depth.tsv'), emit: coverage
     tuple val(meta), path('*.bam')      , emit: bam, optional: true
-    tuple val("${task.process}"), val('coverm'), eval('coverm --version | sed "s/coverm //"'), emit: versions_coverm, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

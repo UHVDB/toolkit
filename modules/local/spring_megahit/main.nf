@@ -12,8 +12,6 @@ process SPRING_MEGAHIT {
 
     output:
     tuple val(meta), path("*.contigs.fna.gz")  , emit: fna_gz
-    tuple val("${task.process}"), val('spring'), val('1.1.1'), topic: versions, emit: versions_spring
-    tuple val("${task.process}"), val('megahit'), eval("megahit -v | sed 's/MEGAHIT v//'"), topic: versions, emit: versions_megahit
 
     script:
     prefix = task.ext.prefix ?: "${meta.id}"

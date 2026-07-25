@@ -1,11 +1,12 @@
-include { rmEmptyFastAs; rmEmptyTsvs; add_split } from '../functions/main'
-include { GENOMAD_DOWNLOAD                                              } from '../../../modules/nf-core/genomad/download/main'
-include { VIRALVERIFY_DOWNLOAD                                          } from '../../../modules/local/viralverify/download/main'
-include { SEQKIT_SEQ_REPLACE_SPLIT2                                     } from '../../../modules/local/seqkit/seq_replace_split2/main'
-include { GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY                           } from '../../../modules/local/genomad_checkv_viralverify_classify/main'
-include { ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY             } from '../../../modules/local/aria2c_seqkit_genomad_checkv_viralverify_classify/main'
-include { SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY                    } from '../../../modules/local/seqkit_genomad_checkv_viralverify_classify/main'
-include { FIND_CONCATENATEHEADERS                                       } from '../../../modules/local/find/concatenateheaders/main'
+include { rmEmptyFastAs; rmEmptyTsvs; add_split             } from '../functions/main'
+include { GENOMAD_DOWNLOAD                                  } from '../../../modules/local/genomad/download/main'
+include { GENOMAD_DOWNLOADHALLMARKS                         } from '../../../modules/local/genomad/downloadhallmarks/main'
+include { VIRALVERIFY_DOWNLOAD                              } from '../../../modules/local/viralverify/download/main'
+include { SEQKIT_SEQ_REPLACE_SPLIT2                         } from '../../../modules/local/seqkit_seq_replace_split2/main'
+include { GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY               } from '../../../modules/local/genomad_checkv_viralverify_classify/main'
+include { ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY } from '../../../modules/local/aria2c_seqkit_genomad_checkv_viralverify_classify/main'
+include { SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY        } from '../../../modules/local/seqkit_genomad_checkv_viralverify_classify/main'
+include { FIND_CONCATENATEHEADERS                           } from '../../../modules/local/find/concatenateheaders/main'
 
 workflow CLASSIFY {
 
@@ -16,15 +17,22 @@ workflow CLASSIFY {
 
     main:
     ch_confident_fna_gz = channel.empty()
-    ch_uncertain_fna_gz = channel.empty()
     ch_complete_fna_gz  = channel.empty()
-    ch_tsv_gz           = channel.empty()
+    ch_classify_tsv_gz  = channel.empty()
+    ch_hcfilter_tsv_gz  = channel.empty()
 
     //
     // MODULE: Download genomad's database
     //
     GENOMAD_DOWNLOAD()
     ch_genomad_db = GENOMAD_DOWNLOAD.out.genomad_db.collect()
+
+    //
+    // MODULE: Download geNomad hallmark HMMs and metadata
+    //
+    GENOMAD_DOWNLOADHALLMARKS()
+    ch_hmm = GENOMAD_DOWNLOADHALLMARKS.out.hmm.collect()
+    ch_hmm_tsv_gz = GENOMAD_DOWNLOADHALLMARKS.out.tsv_gz.collect()
 
     //
     // MODULE: Download viralverify's database
@@ -57,12 +65,14 @@ workflow CLASSIFY {
         ch_genomad_db,
         checkv_db,
         ch_viralverify_db,
-        dtr_sequences
+        dtr_sequences,
+        ch_hmm,
+        ch_hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
-    ch_uncertain_fna_gz = ch_uncertain_fna_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.uncertain_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)
-    ch_tsv_gz           = ch_tsv_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.tsv_gz)
+    ch_classify_tsv_gz  = ch_classify_tsv_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.classify_tsv_gz)
+    ch_hcfilter_tsv_gz  = ch_hcfilter_tsv_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.hcfilter_tsv_gz)
 
     // Identify remote ASSEMBLY fasta files and split them into chunks of size params.assembly_split_size
     ch_remote_assemblies = fastas.assembly
@@ -92,14 +102,16 @@ workflow CLASSIFY {
         ch_genomad_db,
         checkv_db,
         ch_viralverify_db,
-        dtr_sequences
+        dtr_sequences,
+        ch_hmm,
+        ch_hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
-    ch_uncertain_fna_gz = ch_uncertain_fna_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.uncertain_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)
-    ch_tsv_gz           = ch_tsv_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.tsv_gz)
+    ch_classify_tsv_gz  = ch_classify_tsv_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.classify_tsv_gz)
+    ch_hcfilter_tsv_gz  = ch_hcfilter_tsv_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.hcfilter_tsv_gz)
 
-    // Identify local ASSEMBLY fasta files and split them into chunks of size params.assembly_split_size 
+    // Identify local ASSEMBLY fasta files and split them into chunks of size params.assembly_split_size
     ch_local_assemblies = rmEmptyFastAs(fastas.assembly)
         .filter { _meta, fasta -> !file(fasta).toUri().toString().startsWith('https://') }
         .map { meta, fasta ->
@@ -128,31 +140,34 @@ workflow CLASSIFY {
         ch_genomad_db,
         checkv_db,
         ch_viralverify_db,
-        dtr_sequences
+        dtr_sequences,
+        ch_hmm,
+        ch_hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
-    ch_uncertain_fna_gz = ch_uncertain_fna_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.uncertain_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)
-    ch_tsv_gz           = ch_tsv_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.tsv_gz)
+    ch_classify_tsv_gz  = ch_classify_tsv_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.classify_tsv_gz)
+    ch_hcfilter_tsv_gz  = ch_hcfilter_tsv_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.hcfilter_tsv_gz)
 
     // Remove empty fasta files and tsv files
     ch_confident_fna_gz = rmEmptyFastAs(ch_confident_fna_gz)
-    ch_uncertain_fna_gz = rmEmptyFastAs(ch_uncertain_fna_gz)
     ch_complete_fna_gz  = rmEmptyFastAs(ch_complete_fna_gz)
-    ch_tsv_gz           = rmEmptyTsvs(ch_tsv_gz)
+    ch_classify_tsv_gz  = rmEmptyTsvs(ch_classify_tsv_gz)
+    ch_hcfilter_tsv_gz  = rmEmptyTsvs(ch_hcfilter_tsv_gz)
 
     //
     // MODULE: Combine classify tsv file
     //
     FIND_CONCATENATEHEADERS(
-        ch_tsv_gz.map { _meta, tsv_gz -> [ tsv_gz ] }.collect().map { tsv_gzs -> [ [ id:'combined_classify' ], tsv_gzs ] },
+        ch_classify_tsv_gz.map { _meta, tsv_gz -> [ tsv_gz ] }.collect().map { tsv_gzs -> [ [ id:'combined_classify' ], tsv_gzs ] }
+            .mix(ch_hcfilter_tsv_gz.map { _meta, tsv_gz -> [ tsv_gz ] }.collect().map { tsv_gzs -> [ [ id:'combined_hcfilter' ], tsv_gzs ] }),
         1
     )
 
     emit:
-    confident_fna_gz = ch_confident_fna_gz.map { meta, fna_gz -> def meta_new = meta + [ confidence: 'confident' ]; [ meta_new, fna_gz ] }
-    uncertain_fna_gz = ch_uncertain_fna_gz.map { meta, fna_gz -> def meta_new = meta + [ confidence: 'uncertain' ] + [ id: meta.id + '_uncertain' ]; [ meta_new, fna_gz ] }
+    confident_fna_gz = ch_confident_fna_gz
     complete_fna_gz  = ch_complete_fna_gz
-    tsv_gz           = ch_tsv_gz
+    classify_tsv_gz  = ch_classify_tsv_gz
+    hcfilter_tsv_gz  = ch_hcfilter_tsv_gz
     combined_tsv_gz  = FIND_CONCATENATEHEADERS.out.file_out
 }

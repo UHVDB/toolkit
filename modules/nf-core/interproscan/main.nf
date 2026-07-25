@@ -17,8 +17,6 @@ process INTERPROSCAN {
     tuple val(meta), path('*.xml') , optional: true, emit: xml
     tuple val(meta), path('*.gff3'), optional: true, emit: gff3
     tuple val(meta), path('*.json'), optional: true, emit: json
-    tuple val("${task.process}"), val("interproscan"), eval('interproscan.sh --version | sed "1!d; s/.*version //"'), topic: versions, emit: versions_interproscan
-
 
     when:
     task.ext.when == null || task.ext.when

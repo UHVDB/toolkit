@@ -15,9 +15,6 @@ process CHECKV_SEQKIT_CSVTK_SEQKIT {
     tuple val(meta), path("*_viruses.fna.gz")          , emit: fna_gz
     tuple val(meta), path("*_quality_summary.tsv.gz")  , emit: summary_tsv_gz
     tuple val(meta), path("*_completeness.tsv.gz")     , emit: completeness_tsv_gz
-    tuple val("${task.process}"), val("checkv"), eval("checkv -h 2>&1 | sed '1!d;s/^.*CheckV v//;s/:.*//'"), topic: versions, emit: versions_checkv
-    tuple val("${task.process}"), val('seqkit'), eval("seqkit version | sed 's/^.*v//'"), emit: versions_seqkit, topic: versions
-    tuple val("${task.process}"), val('csvtk'), eval("csvtk version | sed -e 's/csvtk v//g'"), emit: versions_csvtk, topic: versions
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

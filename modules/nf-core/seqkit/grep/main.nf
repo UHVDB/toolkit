@@ -2,7 +2,6 @@ process SEQKIT_GREP {
     tag "$meta.id"
     label 'process_low'
 
-
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/seqkit:2.9.0--h9ee0642_0':
@@ -14,7 +13,6 @@ process SEQKIT_GREP {
 
     output:
     tuple val(meta), path("*.{fa,fq,fa.gz,fq.gz}"), emit: filter
-    tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), emit: versions_seqkit, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

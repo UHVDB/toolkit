@@ -26,7 +26,6 @@ process GENOMAD_ENDTOEND {
     tuple val(meta), path("*_summary/*_virus_genes.tsv")                                   , emit: virus_genes
     tuple val(meta), path("*_summary/*_virus_proteins.faa.gz")                             , emit: virus_proteins
     tuple val(meta), path("*_summary/*_virus_summary.tsv")                                 , emit: virus_summary
-    tuple val("${task.process}"), val('genomad'), eval("genomad --version 2>&1 | sed 's/^.*geNomad, version //; s/ .*//'"), topic: versions, emit: versions_genomad
 
     when:
     task.ext.when == null || task.ext.when

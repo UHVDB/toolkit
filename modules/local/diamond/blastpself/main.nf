@@ -12,36 +12,27 @@ process DIAMOND_BLASTPSELF {
 
     output:
     tuple val(meta), path('*.{txt,txt.gz}'), emit: txt
-    tuple val("${task.process}"), val('diamond'), eval('diamond --version 2>&1 | tail -n 1 | sed "s/^diamond version //"'), emit: versions_diamond, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    def args2 = task.ext.args2 ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    ### Make diamond database from fasta file
+    # make diamond db
     diamond \\
         makedb \\
         --threads ${task.cpus} \\
         --in ${faa_gz} \\
-        -d ${prefix} \\
-        ${args}
+        -d ${prefix}
 
-    ### Blast search against self
+    # diamond blastp
     diamond \\
         blastp \\
         --threads ${task.cpus} \\
         --db ${prefix}.dmnd \\
         --query ${faa_gz} \\
         --outfmt 6 \\
-        ${args2} \\
-        --out ${prefix}.txt
-
-    ### Compress output
-    gzip ${prefix}.txt
+        -k 0 -e 1e-3 --very-sensitive \\
+        --compress 1 \\
+        --out ${prefix}.txt.gz
     """
 
     stub:

@@ -80,7 +80,7 @@ workflow AAICLUSTER {
     //
     DIAMOND_BLASTP_V_NEW(
         PYRODIGALGV.out.faa_gz,
-        DIAMOND_MAKEDB.out.db.filter{ meta, _db -> meta.id.contains("new_species_reps") }.collect(),
+        DIAMOND_MAKEDB.out.db.filter{ meta, _db -> meta.id.contains("new_species_reps") }.first(),
         6,
         []
     )
@@ -90,7 +90,7 @@ workflow AAICLUSTER {
     //
     DIAMOND_BLASTP_V_OLD(
         PYRODIGALGV.out.faa_gz.filter{ meta, _faa_gz -> meta.id.contains("new_species_reps") },
-        DIAMOND_MAKEDB.out.db.filter{ meta, _db -> meta.id.contains("old_species_reps") }.collect(),
+        DIAMOND_MAKEDB.out.db.filter{ meta, _db -> meta.id.contains("old_species_reps") }.first(),
         6,
         []
     )

@@ -1,4 +1,4 @@
-include { TRTRIMMER_SEQHASHER   } from '../../../modules/local/trtrimmer_seqhasher/main'
+include { FIND_CONCATENATE_TRTRIMMER_SEQHASHER  } from '../../../modules/local/find_concatenate_trtrimmer_seqhasher/main'
 include { UHVDB_UNIQUEHASH      } from '../../../modules/local/uhvdb/uniquehash/main'
 include { UHVDB_RENAME          } from '../../../modules/local/uhvdb/rename/main'
 include { VCLUST_CSVTK          } from '../../../modules/local/vclust_csvtk/main'
@@ -23,15 +23,18 @@ workflow DEREPLICATE {
     //
     // MODULE: Calculate the sequence hash for each virus
     //
-    TRTRIMMER_SEQHASHER(
+    FIND_CONCATENATE_TRTRIMMER_SEQHASHER(
         rmEmptyFastAs(hq_confident_viruses_fna_gz)
+            .map { _meta, tsv_gz -> [ tsv_gz ] }
+            .collect()
+            .map { tsv_gzs -> [ [ id:'new_unique_viruses' ], tsv_gzs ] },
     )
 
     //
     // MODULE: Identify new hashes and rename sequences with a UHVDB ID
     //
     UHVDB_UNIQUEHASH(
-        TRTRIMMER_SEQHASHER.out.tsv_gz
+        FIND_CONCATENATE_TRTRIMMER_SEQHASHER.out.tsv_gz
             .map { _meta, tsv_gz -> [ tsv_gz ] }
             .collect()
             .map { tsv_gzs -> [ [ id:'new_unique_viruses' ], tsv_gzs ] },

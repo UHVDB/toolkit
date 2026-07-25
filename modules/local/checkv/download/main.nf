@@ -1,5 +1,8 @@
 process CHECKV_DOWNLOAD {
     label 'process_single'
+    tag "CheckV-UHVDB 5.1"
+    storeDir "${params.dbdir}/checkv/5.1"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -8,43 +11,26 @@ process CHECKV_DOWNLOAD {
 
     output:
     path "checkv_db", emit: checkv_db
-    // tuple val("${task.process}"), val('wget'), eval('wget --version | head -1 | cut -d " " -f 3'), emit: versions_wget, topic: versions
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
-    def checkv_s3 = params.checkv_s3
-    def checkv_zenodo = params.checkv_zenodo
     if ( task.attempt == 1 ) {
         """
-        ### Download database
-        wget ${checkv_s3} -O checkv_db.tar.gz
+        # download database
+        wget https://s3.kopah.uw.edu/uhvdb-checkv/v5.1/checkv_db.tar.gz
 
-        ### Extract database
-        mkdir -p checkv_db
-        tar -xvf checkv_db.tar.gz -C ./checkv_db
-
-        ### Cleanup
-        rm checkv_db.tar.gz
-        """
-    } else {
-        """
-        ### Download CheckV database from Zenodo fallback
-        wget ${checkv_zenodo} -O checkv_db.tar.gz
-
-        ### Extract database
+        # extract database
         mkdir -p checkv_db tmp
         tar -xvf checkv_db.tar.gz -C ./tmp
         mv tmp/*/*/ checkv_db/
 
-        ### Cleanup
-        rm checkv_db.tar.gz
+        # cleanup
+        rm -rf tmp checkv_db.tar.gz
         """
     }
+    // TODO: add zenodo fallback
+
     stub:
     """
-    ### Touch empty database files
     mkdir -p checkv_db
     touch checkv_db/README.txt
     mkdir -p checkv_db/genome_db

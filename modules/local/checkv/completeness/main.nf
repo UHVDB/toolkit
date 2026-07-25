@@ -13,10 +13,6 @@ process CHECKV_COMPLETENESS {
 
     output:
     tuple val(meta), path ("*_completeness.tsv.gz")    , emit: tsv_gz
-    tuple val("${task.process}"), val("checkv"), eval("checkv -h 2>&1 | sed '1!d;s/^.*CheckV v//;s/:.*//'"), topic: versions, emit: versions_checkv
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''

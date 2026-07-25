@@ -1,5 +1,8 @@
 process GENOMAD_DOWNLOAD {
     label 'process_single'
+    tag "geNomad 1.12.0"
+    storeDir "${params.dbdir}/genomad/1.12.0"
+    publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -8,17 +11,12 @@ process GENOMAD_DOWNLOAD {
 
     output:
     path "genomad_db/" , emit: genomad_db
-    // tuple val("${task.process}"), val('genomad'), eval("genomad --version 2>&1 | sed 's/^.*geNomad, version //; s/ .*//'"), topic: versions, emit: versions_genomad
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
     """
+    # download database
     genomad \\
         download-database \\
-        ${args} \\
         .
     """
 

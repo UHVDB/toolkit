@@ -13,10 +13,6 @@ process UHVDB_GENECOVERAGE {
 
     output:
     tuple val(meta), path("*.gene_coverage.tsv.gz"), emit: tsv_gz
-    // tuple val("${task.process}"), val('numpy'), eval('python -c "import numpy; print(numpy.__version__)"'), topic: versions, emit: versions_numpy
-    // tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    // tuple val("${task.process}"), val('pysam'), eval('python -c "import pysam; print(pysam.__version__)"'), topic: versions, emit: versions_pysam
-    // tuple val("${task.process}"), val('uhvdb_genecoverage'), eval('uhvdb_genecoverage.py --version'), topic: versions, emit: versions_uhvdb_genecoverage
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

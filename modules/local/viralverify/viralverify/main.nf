@@ -14,8 +14,6 @@ process VIRALVERIFY_VIRALVERIFY {
     output:
     tuple val(meta), path ("*_result_table.csv.gz")  , emit: csv_gz
     tuple val(meta), path ("*_domtblout.gz")         , emit: domtblout_gz
-    tuple val("${task.process}"), val('viralverify'), val('1.1'), emit: versions_viralverify, topic: versions
-    // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
 
     script:
     def args = task.ext.args ?: ''

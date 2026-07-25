@@ -21,7 +21,6 @@ process DIAMOND_BLASTP {
     tuple val(meta), path('*.{sam,sam.gz}'), optional: true, emit: sam
     tuple val(meta), path('*.{tsv,tsv.gz}'), optional: true, emit: tsv
     tuple val(meta), path('*.{paf,paf.gz}'), optional: true, emit: paf
-    tuple val("${task.process}"), val('diamond'), eval('diamond --version 2>&1 | tail -n 1 | sed "s/^diamond version //"'), emit: versions_diamond, topic: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -29,42 +28,7 @@ process DIAMOND_BLASTP {
     script:
     meta = meta + [ db: meta2.id ]
 
-    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}.${meta2.id}"
-
-    def columns = blast_columns ? "${blast_columns}" : ''
-    def out_ext = ""
-
-    if (outfmt == 0) {
-        out_ext = "blast"
-    }
-    else if (outfmt == 5) {
-        out_ext = "xml"
-    }
-    else if (outfmt == 6) {
-        out_ext = "txt"
-    }
-    else if (outfmt == 100) {
-        out_ext = "daa"
-    }
-    else if (outfmt == 101) {
-        out_ext = "sam"
-    }
-    else if (outfmt == 102) {
-        out_ext = "tsv"
-    }
-    else if (outfmt == 103) {
-        out_ext = "paf"
-    }
-    else {
-        log.warn("Unknown output file format provided (${outfmt}): selecting DIAMOND default of tabular BLAST output (txt)")
-        outfmt = 6
-        out_ext = 'txt'
-    }
-
-    if (args =~ /--compress\s+1/) {
-        out_ext += '.gz'
-    }
 
     """
     diamond \\
@@ -72,51 +36,18 @@ process DIAMOND_BLASTP {
         --threads ${task.cpus} \\
         --db ${db} \\
         --query ${fasta} \\
-        --outfmt ${outfmt} ${columns} \\
-        ${args} \\
-        --out ${prefix}.${out_ext}
+        --outfmt 6 \\
+        --compress 1 \\
+        -k 0 -e 1e-3 --very-sensitive \\
+        --out ${prefix}.txt.gz
     """
 
     stub:
     meta = meta + [ db: meta2.id ]
 
-    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
 
-    def out_ext = ""
-
-    if (outfmt == 0) {
-        out_ext = "blast"
-    }
-    else if (outfmt == 5) {
-        out_ext = "xml"
-    }
-    else if (outfmt == 6) {
-        out_ext = "txt"
-    }
-    else if (outfmt == 100) {
-        out_ext = "daa"
-    }
-    else if (outfmt == 101) {
-        out_ext = "sam"
-    }
-    else if (outfmt == 102) {
-        out_ext = "tsv"
-    }
-    else if (outfmt == 103) {
-        out_ext = "paf"
-    }
-    else {
-        log.warn("Unknown output file format provided (${outfmt}): selecting DIAMOND default of tabular BLAST output (txt)")
-        outfmt = 6
-        out_ext = 'txt'
-    }
-
-    if (args =~ /--compress\s+1/) {
-        out_ext += '.gz'
-    }
-
     """
-    touch ${prefix}.${out_ext}
+    echo "" | gzip > ${prefix}.txt.gz
     """
 }

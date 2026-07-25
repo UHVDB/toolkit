@@ -12,12 +12,6 @@ process UHVDB_HQFILTER {
 
     output:
     tuple val(meta), path("*.uhvdb_hq.fna.gz")    , emit: fna_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('biopython'), eval('python -c "import Bio; print(Bio.__version__)"'), topic: versions, emit: versions_biopython
-    tuple val("${task.process}"), val('uhvdb_hqfilter'), eval('uhvdb_hqfilter.py --version'), topic: versions, emit: versions_uhvdb_hqfilter
-
-    when:
-    task.ext.when == null || task.ext.when
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

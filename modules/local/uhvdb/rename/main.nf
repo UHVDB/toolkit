@@ -13,9 +13,6 @@ process UHVDB_RENAME {
 
     output:
     tuple val(meta) , path("*.tsv.gz") , emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('biopython'), eval('python -c "import Bio; print(Bio.__version__)"'), topic: versions, emit: versions_biopython
-    tuple val("${task.process}"), val('uhvdb_rename'), eval('uhvdb_rename.py --version'), topic: versions, emit: versions_uhvdb_rename
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}.rename"

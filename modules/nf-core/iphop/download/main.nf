@@ -8,7 +8,6 @@ process IPHOP_DOWNLOAD {
 
     output:
     path "iphop_db/"        , emit: iphop_db
-    path "versions.yml"     , emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -64,28 +64,38 @@ def main(args=None):
     results = []
     with open(args.hmmsearch_tbl, 'r') as tbl:
         for line in tbl:
-            if '#' in line[0]:
+            if not line or line[0] == '#':
                 continue
             strip_split = line.strip().split()
+            if len(strip_split) < 5:
+                continue
             protein = strip_split[0]
             genome = protein.rsplit('_', 1)[0]
             target = strip_split[2]
             results.append({'contig_id': genome, 'protein': protein, 'hallmark': target, 'evalue': float(strip_split[4])})
-    tbl.close()
 
     ### summarize hallmarks per uncertain genome
-    uncertain2_confident = (
-        pl.DataFrame(results)
-            .with_columns([
-                pl.when(pl.col('hallmark').is_in(genomad_virus_hallmarks)).then(1).otherwise(0).alias('virus_hallmarks'),
-                pl.when(pl.col('hallmark').is_in(genomad_plasmid_hallmarks)).then(1).otherwise(0).alias('plasmid_hallmarks'),
-            ])
-            .sort('evalue', descending=False)
-            .group_by('protein')
-            .first()
-            .group_by(['contig_id'])
-            .agg([pl.col('virus_hallmarks').sum().alias('virus_hallmarks'), pl.col('plasmid_hallmarks').sum().alias('plasmid_hallmarks')])
-    )
+    if results:
+        uncertain2_confident = (
+            pl.DataFrame(results)
+                .with_columns([
+                    pl.when(pl.col('hallmark').is_in(genomad_virus_hallmarks)).then(1).otherwise(0).alias('virus_hallmarks'),
+                    pl.when(pl.col('hallmark').is_in(genomad_plasmid_hallmarks)).then(1).otherwise(0).alias('plasmid_hallmarks'),
+                ])
+                .sort('evalue', descending=False)
+                .group_by('protein')
+                .first()
+                .group_by(['contig_id'])
+                .agg([pl.col('virus_hallmarks').sum().alias('virus_hallmarks'), pl.col('plasmid_hallmarks').sum().alias('plasmid_hallmarks')])
+        )
+    else:
+        uncertain2_confident = pl.DataFrame(
+            schema={
+                'contig_id': pl.Utf8,
+                'virus_hallmarks': pl.Int64,
+                'plasmid_hallmarks': pl.Int64,
+            }
+        )
 
     uncertain2_confident.write_csv(args.output_tsv, separator='\t', include_header=True)
 
@@ -96,7 +106,8 @@ def main(args=None):
                 (pl.col('plasmid_hallmarks') == 0)
             )
             ['contig_id']
-    )
+    ) if results else set()
+
 
     # write output FASTA file
     if args.fasta.endswith('.gz'):

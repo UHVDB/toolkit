@@ -12,7 +12,6 @@ process MCL {
 
     output:
     tuple val(meta), path("*.mcl.gz")      , emit: mcl_gz
-    tuple val("${task.process}"), val('mcl'), eval('mcl --version'), topic: versions, emit: versions_mcl
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"

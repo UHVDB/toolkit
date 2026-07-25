@@ -13,8 +13,6 @@ process UHVDB_PRUNE {
 
     output:
     tuple val(meta) , path("*.pruned.tsv.gz")  , emit: tsv_gz
-    tuple val("${task.process}"), val('polars'), eval('python -c "import polars; print(polars.__version__)"'), topic: versions, emit: versions_polars
-    tuple val("${task.process}"), val('uhvdb_prune'), eval('uhvdb_prune.py --version'), topic: versions, emit: versions_uhvdb_prune
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
