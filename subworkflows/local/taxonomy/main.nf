@@ -1,19 +1,17 @@
-include { ICTV_DOWNLOADER          } from '../../../modules/local/ictv/downloader/main'
-include { PYRODIGALGV } from '../../../modules/local/pyrodigalgv/main'
-include { DIAMOND_MAKEDB } from '../../../modules/nf-core/diamond/makedb/main.nf'
-include { DIAMOND_BLASTP } from '../../../modules/nf-core/diamond/blastp/main.nf'
-include { DIAMOND_BLASTPSELF } from '../../../modules/local/diamond/blastpself/main.nf'
-include { UHVDB_SELFSCORE } from '../../../modules/local/uhvdb/selfscore/main.nf'
-include { UHVDB_NORMSCORE } from '../../../modules/local/uhvdb/normscore/main.nf'
-include { FIND_CONCATENATE } from '../../../modules/nf-core/find/concatenate/main'
+include { ICTV_DOWNLOADER       } from '../../../modules/local/ictv/downloader/main'
+include { DIAMOND_MAKEDB        } from '../../../modules/nf-core/diamond/makedb/main'
+include { DIAMOND_BLASTP        } from '../../../modules/nf-core/diamond/blastp/main'
+include { DIAMOND_BLASTPSELF    } from '../../../modules/local/diamond/blastpself/main'
+include { UHVDB_SELFSCORE       } from '../../../modules/local/uhvdb/selfscore/main'
+include { UHVDB_NORMSCORE       } from '../../../modules/local/uhvdb/normscore/main'
+include { FIND_CONCATENATE      } from '../../../modules/nf-core/find/concatenate/main'
+include { UHVDB_TAXONOMY        } from '../../../modules/local/uhvdb/taxonomy/main'
 
 workflow TAXONOMY {
 
     take:
     uhvdb_genomovar_reps_faa_gz
     classify_tsv_gz
-    uhvdb_metadata_tsv_gz
-    uhvdb_metadata_sylphtax_tsv_gz
 
     main:
 
@@ -69,11 +67,23 @@ workflow TAXONOMY {
     // MODULE: Combine normalized protein similarity scores
     //
     FIND_CONCATENATE(
-        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.mix(UHVDB_NORMSCORE).collect().map{ tsv_gzs -> [ [ id:'uhvbd_taxonomy' ], tsv_gzs ] }
+        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.collect().map{ tsv_gzs -> [ [ id:'uhvbd_taxonomy' ], tsv_gzs ] }
     )
 
     //
     // MODULE: Create UHVDB taxonomy file
     //
-    
+    ch_vmr_xlsx = channel
+        .fromPath('https://ictv.global/vmr/current')
+        .map { xlsx -> [[id: 'ictv_vmr'], xlsx] }
+
+    UHVDB_TAXONOMY(
+        FIND_CONCATENATE.out.file_out.map { _meta, tsv_gz -> [[id: 'uhvdb_taxonomy'], tsv_gz] },
+        classify_tsv_gz,
+        ch_vmr_xlsx
+    )
+
+    emit:
+    taxonomy_tsv_gz = UHVDB_TAXONOMY.out.tsv_gz
+    ictv_hits_tsv_gz = FIND_CONCATENATE.out.file_out
 }

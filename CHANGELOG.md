@@ -9,6 +9,14 @@ Initial release of UHVDB/toolkit, created with the [nf-core](https://nf-co.re/) 
 
 ### `Added`
 
+- CRISPRHOST subworkflow with SpacerExtractor create/map modules, SPACER_DOWNLOAD from Kopah S3, and permanent Wave containers
+- PHISTHOST subworkflow with UHBDB download, PHIST build/UHBDB modules, and host consensus annotation
+- PHISTHOST sample-chunks large UHBDB AGCs (`params.phist_agc_split_min_bytes`) via PHIST_LISTSETS and extracts each chunk in-job inside PHIST_UHBDB (`params.phist_host_chunk_size`); smaller AGCs run PHIST_AGC without sample chunking
+
+### `Changed`
+
+- PHIST_UHBDB now takes an AGC plus a sample-name list and runs `agc getset` in-job instead of unpacking persistent host FASTA tarballs from PHIST_EXTRACTHOSTS
+
 ### `Fixed`
 
 ### `Dependencies`

@@ -1,7 +1,7 @@
 process UHVDB_DOWNLOAD {
     label 'process_single'
     tag "UHVDB 5.1"
-    storeDir "${params.dbdir}/uhvdb/5.1"
+    storeDir "${params.dbdir}/uhvdb/${params.uhvdb_version}"
     publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"

@@ -1,22 +1,22 @@
-include { CSVTK_SEQKIT          } from '../../../modules/local/csvtk_seqkit/main'
-include { SYLPH_SKETCHGENOMES   } from '../../../modules/nf-core/sylph/sketchgenomes/main'
-include { SPRING_SYLPH           } from '../../../modules/local/spring_sylph/main'
-include { SYLPHTAX_TAXPROF       } from '../../../modules/nf-core/sylphtax/taxprof/main'
-include { SYLPHTAX_MERGE         } from '../../../modules/nf-core/sylphtax/merge/main'
-include { CSVTK_SEQKIT as CSVTK_SEQKIT_SYLPH } from '../../../modules/local/csvtk_seqkit/main'
-include { SPRING_COVERM } from '../../../modules/local/spring_coverm/main'
-include { UHVDB_GENECOVERAGE } from '../../../modules/local/uhvdb/genecoverage/main'
-include { UHVDB_REFERENCEACTIVITY } from '../../../modules/local/uhvdb/referenceactivity/main'
-include { rmEmptyTsvs; rmEmptyFastAs } from '../functions/main'
+include { CSVTK_SEQKIT                                                   } from '../../../modules/local/csvtk_seqkit/main'
+include { SYLPH_SKETCHGENOMES                                            } from '../../../modules/nf-core/sylph/sketchgenomes/main'
+include { SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE     } from '../../../modules/local/sracha_fastp_deacon_sylph_csvtk_seqkit_coverm_genecoverage/main'
+include { FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE            } from '../../../modules/local/fastp_deacon_sylph_csvtk_seqkit_coverm_genecoverage/main'
+include { SYLPHTAX_TAXPROF                                               } from '../../../modules/nf-core/sylphtax/taxprof/main'
+include { SYLPHTAX_MERGE                                                 } from '../../../modules/nf-core/sylphtax/merge/main'
+// include { UHVDB_REFERENCEACTIVITY                                        } from '../../../modules/local/uhvdb/referenceactivity/main'
+// include { rmEmptyTsvs                                                    } from '../functions/main'
 
 workflow REFERENCEANALYZE {
 
     take:
-    spring
+    reads
+    sras
+    deacon_idx
     uhvdb_unique_reps_fna_gz
     uhvdb_metadata_tsv_gz
     uhvdb_metadata_sylphtax_tsv_gz
-    uhvdb_protein_annotations_tsv_gz
+    uhvdb_protein_annotations
 
     main:
 
@@ -37,19 +37,42 @@ workflow REFERENCEANALYZE {
         CSVTK_SEQKIT.out.fna_gz
     )
 
+    ch_syldb = SYLPH_SKETCHGENOMES.out.syldb.collect().map { _meta, syldb -> [ syldb, file(params.bacteria_syldb) ] }
+    ch_species_reps_fna_gz = CSVTK_SEQKIT.out.fna_gz.map { _meta, fna_gz -> fna_gz }.first()
+
     //
-    // MODULE: Identify contained genomes with spring and sylph
+    // MODULE: Download, preprocess, and analyse SRA reads against UHVDB
     //
-    SPRING_SYLPH(
-        spring,
-        SYLPH_SKETCHGENOMES.out.syldb.collect().map { _meta, syldb -> [ syldb, file(params.bacteria_syldb) ] }
+    SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE(
+        sras,
+        deacon_idx,
+        ch_syldb,
+        ch_species_reps_fna_gz,
+        uhvdb_protein_annotations
     )
+    ch_profile_tsv = SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.tsv
+    ch_depth_tsv_gz = SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.depth_tsv_gz
+    ch_gene_coverage_tsv_gz = SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.gene_coverage_tsv_gz
+
+    //
+    // MODULE: Preprocess and analyse local reads against UHVDB
+    //
+    FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE(
+        reads,
+        deacon_idx,
+        ch_syldb,
+        ch_species_reps_fna_gz,
+        uhvdb_protein_annotations
+    )
+    ch_profile_tsv = ch_profile_tsv.mix(FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.tsv)
+    ch_depth_tsv_gz = ch_depth_tsv_gz.mix(FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.depth_tsv_gz)
+    ch_gene_coverage_tsv_gz = ch_gene_coverage_tsv_gz.mix(FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.gene_coverage_tsv_gz)
 
     //
     // MODULE: Run sylph-tax
     //
     SYLPHTAX_TAXPROF(
-        SPRING_SYLPH.out.tsv,
+        ch_profile_tsv,
         uhvdb_metadata_sylphtax_tsv_gz
     )
 
@@ -61,36 +84,11 @@ workflow REFERENCEANALYZE {
         'relative_abundance'
     )
 
-    //
-    // MODULE: Extract contained viruses from sylph output
-    //
-    CSVTK_SEQKIT_SYLPH(
-        SPRING_SYLPH.out.tsv.combine(rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz)).map { meta, tsv, _meta2, fna_gz -> [ meta, tsv, fna_gz ] },
-        "--tabs --filter '( \$Genome_file == \"genomes/uhvdb.species_reps.fna.gz\" )' | csvtk cut --tabs -f Contig_name --out-delimiter '\t'",
-        "",
-        "contained_viruses"
-    )
-
-    //
-    // MODULE: Align reads to contained viruses
-    //
-    SPRING_COVERM(
-        spring.join(rmEmptyFastAs(CSVTK_SEQKIT_SYLPH.out.fna_gz))
-    )
-
-    //
-    // MODULE: Compute per-gene coverage for contained viruses
-    //
-    UHVDB_GENECOVERAGE(
-        SPRING_COVERM.out.bam,
-        uhvdb_protein_annotations_tsv_gz
-    )
-
     // //
     // // MODULE: Assign activity tier to each reference genome
     // //
     // UHVDB_REFERENCEACTIVITY(
-    //     rmEmptyTsvs(SYLPHTAX_TAXPROF.out.taxprof_output).combine(rmEmptyTsvs(SPRING_COVERM.out.tsv_gz), by:0),
+    //     rmEmptyTsvs(SYLPHTAX_TAXPROF.out.taxprof_output).combine(rmEmptyTsvs(ch_depth_tsv_gz), by:0),
     //     uhvdb_metadata_tsv_gz,
     //     "${projectDir}/assets/models/phage_activity_model_full.joblib",
     //     "${projectDir}/assets/models/phage_model_metadata_full.joblib"

@@ -4,6 +4,7 @@ import argparse
 import gzip
 import sys
 
+import fastexcel
 import polars as pl
 
 
@@ -60,8 +61,19 @@ def main(args=None):
             .unique(['uhvdb_id'], maintain_order=True)
     )
 
-    # load VMR
-    msl = pl.read_excel(args.vmr_url, sheet_name='VMR MSL40', columns=['Species', 'Genus', 'Family', 'Order', 'Class'])
+    # load VMR (prefer sheet names starting with VMR, matching ictv_downloader.py)
+    sheet_names = fastexcel.read_excel(args.vmr_url).sheet_names
+    vmr_sheets = [s for s in sheet_names if s.upper().startswith('VMR')]
+    if vmr_sheets:
+        sheet_name = vmr_sheets[0]
+    else:
+        sheet_name = sheet_names[1] if len(sheet_names) > 1 else sheet_names[0]
+
+    msl = pl.read_excel(
+        args.vmr_url,
+        sheet_name=sheet_name,
+        columns=['Species', 'Genus', 'Family', 'Order', 'Class'],
+    )
 
     # join normscore with VMR to get class labels
     ictv_class = (
