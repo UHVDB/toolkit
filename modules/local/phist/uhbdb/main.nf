@@ -1,7 +1,7 @@
 process PHIST_UHBDB {
     tag "${meta.id}"
-    label 'process_high'
-    maxForks 50
+    label 'process_super_high'
+    maxForks 10
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -23,39 +23,21 @@ process PHIST_UHBDB {
         exit 0
     fi
 
-    ### Extract this sample chunk from the AGC in-job (no persistent host store)
+    ### Extract one gzipped FASTA per sample (same layout as agc getcol -g 1)
+    ### Do not split on contig headers: that multiplies files and breaks genome IDs
     mkdir -p host_fastas
-    batch=()
-    flush_batch() {
-        if [ \${#batch[@]} -eq 0 ]; then
-            return
-        fi
-        agc getset \\
-            -t ${task.cpus} \\
-            ${agc} \\
-            "\${batch[@]}" | awk -v d=host_fastas '
-                /^>/ {
-                    close(f)
-                    name = substr(\$1, 2)
-                    gsub(/[^A-Za-z0-9._+-]/, "_", name)
-                    f = d "/" name ".fna"
-                    print > f
-                    next
-                }
-                { print > f }
-            '
-        batch=()
-    }
     while IFS= read -r sample || [ -n "\$sample" ]; do
         [ -z "\$sample" ] && continue
-        batch+=("\$sample")
-        if [ \${#batch[@]} -ge 100 ]; then
-            flush_batch
-        fi
+        agc getset \\
+            -t ${task.cpus} \\
+            -p \\
+            -g 1 \\
+            -o "host_fastas/\${sample}.fa.gz" \\
+            ${agc} \\
+            "\$sample"
     done < ${sample_list}
-    flush_batch
 
-    if [ -z "\$(find host_fastas -type f | head -n 1)" ]; then
+    if [ -z "\$(find -L host_fastas -type f | head -n 1)" ]; then
         printf '' | gzip > ${meta.id}.phist.min.csv.gz
         rm -rf host_fastas
         exit 0

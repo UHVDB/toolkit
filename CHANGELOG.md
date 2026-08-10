@@ -19,6 +19,8 @@ Initial release of UHVDB/toolkit, created with the [nf-core](https://nf-co.re/) 
 
 ### `Fixed`
 
+- PHIST_UHBDB extracts one gzipped FASTA per AGC sample (`agc getset -g 1`) instead of splitting contig headers into separate files; lower default `phist_host_chunk_size` (1000) and `maxForks` (10) to limit disk use
+
 ### `Dependencies`
 
 ### `Deprecated`

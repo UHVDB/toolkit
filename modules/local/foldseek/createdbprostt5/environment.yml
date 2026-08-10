@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+# CPU fallback for conda profile only. GPU runs use the Dockerfile / GPU binary.
+- bioconda::foldseek=10.941cd33

@@ -1,4 +1,5 @@
 include { ICTV_DOWNLOADER       } from '../../../modules/local/ictv/downloader/main'
+include { PYRODIGALGV           } from '../../../modules/local/pyrodigalgv/main'
 include { DIAMOND_MAKEDB        } from '../../../modules/nf-core/diamond/makedb/main'
 include { DIAMOND_BLASTP        } from '../../../modules/nf-core/diamond/blastp/main'
 include { DIAMOND_BLASTPSELF    } from '../../../modules/local/diamond/blastpself/main'
@@ -16,16 +17,23 @@ workflow TAXONOMY {
     main:
 
     //
-    // MODULE: Create a fasta file of ICTV VMR sequences from the provided Excel file (script)
+    // MODULE: Download ICTV VMR genomic nucleotide sequences
     //
     ICTV_DOWNLOADER(
     )
 
     //
-    // MODULE: Make a DIAMOND database of ICTV VMR sequences
+    // MODULE: Predict proteins from ICTV genomes (genome-level gene IDs for normscore)
+    //
+    PYRODIGALGV(
+        ICTV_DOWNLOADER.out.fna_gz.map { fna -> [[id: 'ictv_genomes'], fna] }
+    )
+
+    //
+    // MODULE: Make a DIAMOND database of ICTV proteins
     //
     DIAMOND_MAKEDB(
-        ICTV_DOWNLOADER.out.faa_gz.map { faa -> [[id: 'ictv_cds'], faa] },
+        PYRODIGALGV.out.faa_gz,
         [],
         [],
         []

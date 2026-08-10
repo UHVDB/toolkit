@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::diamond=2.1.11
+- conda-forge::wget=1.21.4

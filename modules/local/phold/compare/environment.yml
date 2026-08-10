@@ -1,0 +1,8 @@
+channels:
+- conda-forge
+- bioconda
+- pytorch
+dependencies:
+- bioconda::phold=1.2.2
+- pytorch::pytorch=2.3.0
+- pytorch::pytorch-cuda=12.1

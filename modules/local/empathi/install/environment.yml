@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- conda-forge::git=2.47.1
+- conda-forge::git-lfs=3.5.1

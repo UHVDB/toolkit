@@ -23,6 +23,7 @@ include { PYRODIGALGV                   } from '../modules/local/pyrodigalgv/mai
 include { TAXONOMY                      } from '../subworkflows/local/taxonomy/main'
 include { CRISPRHOST                    } from '../subworkflows/local/crisprhost/main'
 include { PHISTHOST                     } from '../subworkflows/local/phisthost/main'
+include { FUNCTION                      } from '../subworkflows/local/function/main'
 include { REFERENCEANALYZE              } from '../subworkflows/local/referenceanalyze'
 include { paramsSummaryMap              } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc          } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -154,9 +155,12 @@ workflow TOOLKIT {
 
         //
         // MODULE: Extract new genomovar reps that are not species reps
+        // Join to DEREPLICATE new genomovar FASTA (meta.id new_genomovar_reps), not
+        // ANICLUSTER.new_fna_gz (remapped to new_species_reps), so the join keys match
+        // and invert-match can select non-species reps from the full genomovar set.
         //
         CSVTK_SEQKIT(
-            ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(ANICLUSTER.out.new_fna_gz)),
+            ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(DEREPLICATE.out.new_fna_gz)),
             "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f uhvdb_id --out-delimiter '\t'",
             "--invert-match",
             "genomovar_not_species_reps"
@@ -178,7 +182,7 @@ workflow TOOLKIT {
         // MODULE: Predict proteins for new genomovar reps
         //
         PYRODIGALGV(
-            rmEmptyFastAs(ch_split_genomovar_reps_fna_gz)
+            ch_split_genomovar_reps_fna_gz
         )
 
         //
@@ -204,9 +208,13 @@ workflow TOOLKIT {
             AAICLUSTER.out.split_fna_gz.mix(ch_split_genomovar_reps_fna_gz)
         )
 
-        //
-        // SUBWORKFLOW: Annotate viruses with functions
-        //
+        // //
+        // // SUBWORKFLOW: Annotate viruses with functions
+        // //
+        // FUNCTION(
+        //     AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+        //     ch_uhvdb_protein_annotations_tsv_gz
+        // )
 
         //
         // SUBWORKFLOW: Annotate viruses with lifestyles

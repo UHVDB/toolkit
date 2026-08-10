@@ -78,7 +78,7 @@ def countFastAs(ch_fastas) {
 //
 def extractDigitBeforeExtension(String path) {
     // Regex pattern to match the digit before the file extension
-    def pattern = /(\d+)\.(?:fasta|fna)(?:\.gz)?$/
+    def pattern = /(\d+)\.(?:fasta|fna|faa)(?:\.gz)?$/
 
     // Extract the digit
     def matcher = path =~ pattern

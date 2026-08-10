@@ -1,0 +1,7 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::bakta=1.11.0
+- conda-forge::biopython=1.84
+- conda-forge::pandas=2.2.2
