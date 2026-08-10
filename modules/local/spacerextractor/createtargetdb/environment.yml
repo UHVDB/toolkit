@@ -3,4 +3,5 @@ channels:
 - bioconda
 dependencies:
 - bioconda::spacerextractor=0.9.8
+- conda-forge::polars=1.38.1
 - conda-forge::pigz=2.8

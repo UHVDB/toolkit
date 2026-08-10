@@ -2,11 +2,11 @@ process FOLDSEEK_CREATEDBPROSTT5 {
     tag "${meta.id}"
     label 'process_gpu'
 
-    // GPU binary via Dockerfile (Wave) or frozen ORAS image; biocontainers foldseek is CPU-only
+    // Docker Hub image (docker.io/ required — pipeline default registry is quay.io)
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/fa/fa4194388365921de870bac23d8693e92bfb16ca165c0344a5d9e13cd5b2e6af/data' :
-        'community.wave.seqera.io/library/foldseek:gpu' }"
+        'docker://docker.io/carsonjm/foldseek:10-gpu' :
+        'docker.io/carsonjm/foldseek:10-gpu' }"
 
     input:
     tuple val(meta), path(faa)

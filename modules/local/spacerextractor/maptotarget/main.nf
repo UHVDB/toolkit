@@ -3,9 +3,9 @@ process SPACEREXTRACTOR_MAPTOTARGET {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    // Wave freeze: community.wave.seqera.io/library/spacerextractor_polars_pigz:281ff9610b0f603c
-    // (Singularity pulls the Docker image; ORAS SIF tags were Docker manifests and failed to pull)
-    container 'community.wave.seqera.io/library/spacerextractor_polars_pigz:281ff9610b0f603c'
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/26/262593463fefcf7fcfe9bd767cd939f03bedaa0ba8cdf0846b0acd7c64f49035/data' :
+        'community.wave.seqera.io/library/spacerextractor_polars_pigz:281ff9610b0f603c' }"
 
     input:
     tuple val(meta), path(fna_gz)

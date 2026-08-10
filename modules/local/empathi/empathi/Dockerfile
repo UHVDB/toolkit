@@ -1,5 +1,7 @@
 # Empathi with CUDA PyTorch (same stack as embeddings for ABI consistency).
-FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+# Base must be Python >=3.11.5 (empathi requirement); 2.3.x images ship 3.10.
+# empathi==1.0.6 pins torch==2.3.0, which will replace the base torch.
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 RUN pip install --no-cache-dir \
         empathi==1.0.6 \

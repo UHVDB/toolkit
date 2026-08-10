@@ -2,11 +2,11 @@ process PHOLD_COMPARE {
     tag "${meta.id}"
     label 'process_gpu'
 
-    // Same CUDA image as predict for ABI consistency; compare uses --foldseek_gpu when available
+    // Docker Hub image (docker.io/ required — pipeline default registry is quay.io)
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'docker://pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime' :
-        'pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime' }"
+        'docker://docker.io/carsonjm/phold:1.2.2-cuda12.1' :
+        'docker.io/carsonjm/phold:1.2.2-cuda12.1' }"
 
     input:
     tuple val(meta), path(faa_gz), path(predict)

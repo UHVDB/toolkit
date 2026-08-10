@@ -2,11 +2,11 @@ process EMPATHI_ONLYEMBEDDINGS {
     tag "${meta.id}"
     label 'process_gpu'
 
-    // Wave builds Dockerfile (empathi + CUDA pytorch). Sylabs/CPU images are not reliable for GPU.
+    // Docker Hub image (docker.io/ required — pipeline default registry is quay.io)
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'docker://pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime' :
-        'pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime' }"
+        'docker://docker.io/carsonjm/empathi:1.0.6-cuda12.1' :
+        'docker.io/carsonjm/empathi:1.0.6-cuda12.1' }"
 
     input:
     tuple val(meta), path(faa_gz)
