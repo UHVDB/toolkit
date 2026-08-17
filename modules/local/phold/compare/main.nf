@@ -17,12 +17,6 @@ process PHOLD_COMPARE {
 
     script:
     """
-    ### Image has phold but no foldseek binary; compare --foldseek_gpu needs it.
-    wget -q https://mmseqs.com/foldseek/foldseek-linux-gpu.tar.gz
-    tar -xzf foldseek-linux-gpu.tar.gz
-    export PATH="\$PWD/foldseek/bin:\$PATH"
-    command -v foldseek
-
     ### Decompress
     gunzip -f -c ${faa_gz} > ${meta.id}.faa
 
@@ -44,7 +38,7 @@ process PHOLD_COMPARE {
         ${meta.id}_phold/phold_3di.fasta ${meta.id}_phold/phold_aa.fasta \\
         ${meta.id}_phold/phold_all_cds_functions.tsv \\
         ${meta.id}_phold/phold_run*.log ${meta.id}_phold \\
-        ${meta.id}.faa foldseek foldseek-linux-gpu.tar.gz
+        ${meta.id}.faa
     """
 
     stub:
