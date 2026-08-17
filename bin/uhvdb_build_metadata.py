@@ -22,6 +22,12 @@ HQFILTER_COLS = [
     "aai_num_hits", "aai_top_hit", "aai_id", "aai_af",
 ]
 
+PROTEIN_ANNOT_COLS = [
+    "bakta_acc", "foldseek_acc", "ips_id", "card_acc", "vfdb_acc",
+    "pharokka_annot", "pharokka_category", "phold_category", "phold_annot",
+    "empathi_annot",
+]
+
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(
@@ -151,11 +157,8 @@ def create_base_metadata(args):
             old_id_rows = existing.select(id_cols)
             if "seqhash_rep" not in old_id_rows.columns:
                 old_id_rows = old_id_rows.with_columns(pl.col("seq_name").alias("seqhash_rep"))
-            old_id_rows = (
-                old_id_rows
-                .filter(pl.col("seq_name").is_in(set(seqhasher["original_id"])))
-                .unique("uhvdb_id")
-            )
+            # Keep every existing genome row (seq_name), including extra source
+            # sequences that share a uhvdb_id. unique("uhvdb_id") would drop them.
             id_frames.append(old_id_rows)
     id_df = pl.concat(id_frames, how="vertical_relaxed").unique("seq_name", keep="first")
 
@@ -389,15 +392,22 @@ def _empty_annot(cols):
 
 
 def add_protein_annotations(metadata_df, args, existing_prot):
+    prothash_frames = []
     prothash = _read_tsv(args.proteinhash_tsv)
-    if prothash is None:
+    if prothash is not None and "protein_id" in prothash.columns:
+        prothash_frames.append(_select_cols(prothash, ["protein_id", "hash"]))
+    if existing_prot is not None and "protein_id" in existing_prot.columns:
+        prothash_frames.append(_select_cols(existing_prot, ["protein_id", "hash"]))
+    if not prothash_frames:
         metadata_df.write_csv(args.output_metadata, separator="\t")
         pl.DataFrame().write_csv(args.output_protein_annotations, separator="\t")
         return
+    current_reps = set(metadata_df["genomovar_rep"].drop_nulls().to_list())
     prothash_df = (
-        prothash
-        .unique("protein_id")
+        pl.concat(prothash_frames, how="vertical_relaxed")
+        .unique("protein_id", keep="first")
         .with_columns([pl.col("protein_id").str.replace(r"_[^_]*$", "").alias("genomovar_rep")])
+        .filter(pl.col("genomovar_rep").is_in(current_reps))
     )
     try:
         bakta_df = pl.read_csv(
@@ -494,9 +504,12 @@ def add_protein_annotations(metadata_df, args, existing_prot):
     except Exception:
         empathi_df = _empty_annot(["hash", "empathi_annot"])
 
+    # Keep every protein on current genomovar reps. FUNCTION only annotates novel
+    # hashes, so shared-hash proteins must left-join Bakta/PHROG/Empathi and then
+    # copy existing annotations onto the new protein_id by hash.
     combined_protein_annotations_df1 = (
         prothash_df
-        .join(bakta_df, on="hash", how="inner")
+        .join(bakta_df, on="hash", how="left")
         .join(foldseek_df, on="hash", how="left")
         .join(ips_df, on="hash", how="left")
         .join(card_df, on="hash", how="left")
@@ -505,20 +518,32 @@ def add_protein_annotations(metadata_df, args, existing_prot):
         .join(phold_df, on="hash", how="left")
         .join(empathi_df, on="hash", how="left")
     )
+    if existing_prot is not None and "hash" in existing_prot.columns:
+        old_annot_cols = [col for col in PROTEIN_ANNOT_COLS if col in existing_prot.columns]
+        if old_annot_cols:
+            existing_by_hash = (
+                existing_prot
+                .filter(pl.col("hash").is_not_null())
+                .unique("hash", keep="first")
+                .select(["hash"] + old_annot_cols)
+                .rename({col: f"{col}__old" for col in old_annot_cols})
+            )
+            combined_protein_annotations_df1 = combined_protein_annotations_df1.join(
+                existing_by_hash, on="hash", how="left"
+            ).with_columns([
+                pl.coalesce([pl.col(col), pl.col(f"{col}__old")]).alias(col)
+                for col in old_annot_cols
+            ]).drop([f"{col}__old" for col in old_annot_cols])
 
     frames = [combined_protein_annotations_df1]
     if existing_prot is not None:
         existing_keep = (
             existing_prot
-            .filter(pl.col("genomovar_rep").is_in(set(metadata_df["genomovar_rep"])))
+            .filter(pl.col("genomovar_rep").is_in(current_reps))
         )
-        if "protein_id" in existing_keep.columns and "protein_id" in combined_protein_annotations_df1.columns:
+        if "protein_id" in existing_keep.columns:
             existing_keep = existing_keep.filter(
                 ~pl.col("protein_id").is_in(set(combined_protein_annotations_df1["protein_id"]))
-            )
-        elif "hash" in existing_keep.columns:
-            existing_keep = existing_keep.filter(
-                ~pl.col("hash").is_in(set(combined_protein_annotations_df1["hash"]))
             )
         frames.append(existing_keep)
     combined_protein_annotations_df2 = pl.concat(frames, how="vertical_relaxed")
