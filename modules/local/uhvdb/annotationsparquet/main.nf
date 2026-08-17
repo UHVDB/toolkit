@@ -1,7 +1,7 @@
 process UHVDB_ANNOTATIONS_PARQUET {
     label 'process_high'
-    tag "UHVDB 5.0"
-    storeDir "${params.dbdir}/uhvdb/5.0"
+    tag "UHVDB 5.${params.uhvdb_version}"
+    storeDir "${params.dbdir}/uhvdb/${params.uhvdb_version}"
     publishDir enabled: false
 
     conda "${moduleDir}/environment.yml"

@@ -17,6 +17,15 @@ process EMPATHI_ONLYEMBEDDINGS {
 
     script:
     """
+    ### Keep Hugging Face caches off home quota; offline avoids concurrent .incomplete races
+    export HF_HOME=${params.hf_cache_root}
+    export HUGGINGFACE_HUB_CACHE=\${HF_HOME}/hub
+    export TRANSFORMERS_CACHE=\${HF_HOME}/transformers
+    export TORCH_HOME=\${HF_HOME}/torch
+    export HF_HUB_OFFLINE=1
+    export TRANSFORMERS_OFFLINE=1
+    mkdir -p "\$HF_HOME" "\$HUGGINGFACE_HUB_CACHE" "\$TRANSFORMERS_CACHE" "\$TORCH_HOME"
+
     ### Setup
     gunzip -c ${faa_gz} > ${meta.id}.faa
 

@@ -13,6 +13,7 @@ The directories listed below will be created in the results directory after the 
 The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes data using the following steps:
 
 - [FastQC](#fastqc) - Raw read QC
+- [UHVDB update](#uhvdb-update) - Merged metadata and combined hit tables from `--run_update`
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -28,6 +29,22 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 </details>
 
 [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) gives general quality metrics about your sequenced reads. It provides information about the quality score distribution across your reads, per base sequence content (%A/T/G/C), adapter contamination and overrepresented sequences. For further reading and documentation see the [FastQC help pages](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/).
+
+### UHVDB update
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `uhvdb/`
+  - `uhvdb_metadata.tsv.gz`: merged sequence metadata for the updated database.
+  - `uhvdb_protein_annotations.tsv.gz`: merged per-protein annotations.
+  - `uhvdb_ictv_hits.tsv.gz`: combined new and existing ICTV protein-similarity hits.
+  - `uhvdb_crispr.tsv.gz`: combined new and existing CRISPR spacer hits.
+  - `uhvdb_phist.tsv.gz`: combined new and existing PHIST host hits.
+
+</details>
+
+These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and PHIST tables from `UHVDB_DOWNLOAD` are concatenated with the new results when those files are present in the downloaded tarball.
 
 ### MultiQC
 

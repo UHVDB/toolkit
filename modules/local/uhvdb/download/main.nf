@@ -1,6 +1,6 @@
 process UHVDB_DOWNLOAD {
     label 'process_single'
-    tag "UHVDB 5.1"
+    tag "UHVDB 5.${params.uhvdb_version}"
     storeDir "${params.dbdir}/uhvdb/${params.uhvdb_version}"
     publishDir enabled: false
 
@@ -18,6 +18,9 @@ process UHVDB_DOWNLOAD {
     path("uhvdb_proteins.faa.gz")               , emit: proteins_faa_gz
     path("uhvdb_proteinsimilarity.tsv.gz")      , emit: proteinsimilarity_tsv_gz
     path("uhvdb_protein_annotations.tsv.gz")    , emit: protein_annotations_tsv_gz
+    path("uhvdb_ictv_hits.tsv.gz")              , emit: ictv_hits_tsv_gz, optional: true
+    path("uhvdb_crispr.tsv.gz")                 , emit: crispr_tsv_gz, optional: true
+    path("uhvdb_phist.tsv.gz")                  , emit: phist_tsv_gz, optional: true
 
     script:
     if ( task.attempt == 1 ) {
@@ -45,5 +48,8 @@ process UHVDB_DOWNLOAD {
     echo "" | gzip > uhvdb_proteinsimilarity.tsv.gz
     echo "" | gzip > uhvdb_species_gani.tsv.gz
     echo "" | gzip > uhvdb_proteins.faa.gz
+    echo "" | gzip > uhvdb_ictv_hits.tsv.gz
+    echo "" | gzip > uhvdb_crispr.tsv.gz
+    echo "" | gzip > uhvdb_phist.tsv.gz
     """
 }

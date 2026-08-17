@@ -24,6 +24,8 @@ include { TAXONOMY                      } from '../subworkflows/local/taxonomy/m
 include { CRISPRHOST                    } from '../subworkflows/local/crisprhost/main'
 include { PHISTHOST                     } from '../subworkflows/local/phisthost/main'
 include { FUNCTION                      } from '../subworkflows/local/function/main'
+include { LIFESTYLE                     } from '../subworkflows/local/lifestyle/main'
+include { UPDATE                        } from '../subworkflows/local/update/main'
 include { REFERENCEANALYZE              } from '../subworkflows/local/referenceanalyze'
 include { paramsSummaryMap              } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc          } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -208,21 +210,61 @@ workflow TOOLKIT {
             AAICLUSTER.out.split_fna_gz.mix(ch_split_genomovar_reps_fna_gz)
         )
 
-        // //
-        // // SUBWORKFLOW: Annotate viruses with functions
-        // //
-        // FUNCTION(
-        //     AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
-        //     ch_uhvdb_protein_annotations_tsv_gz
-        // )
+        //
+        // SUBWORKFLOW: Annotate viruses with functions
+        //
+        FUNCTION(
+            AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+            ch_uhvdb_protein_annotations_tsv_gz
+        )
 
         //
         // SUBWORKFLOW: Annotate viruses with lifestyles
         //
 
+        LIFESTYLE(
+            DEREPLICATE.out.new_fna_gz,
+            DEREPLICATE.out.classify_tsv_gz,
+            FUNCTION.out.pharokka_tsv_gz,
+            FUNCTION.out.phold_tsv_gz,
+            FUNCTION.out.empathi_csv_gz,
+            FUNCTION.out.protein2hash_tsv_gz,
+            ch_uhvdb_metadata_tsv_gz
+        )
+
         //
         // SUBWORKFLOW: Update UHVDB with new viruses
         //
+        UPDATE(
+            DEREPLICATE.out.seqhasher_tsv_gz,
+            DEREPLICATE.out.mapping_tsv_gz,
+            DEREPLICATE.out.classify_tsv_gz,
+            DEREPLICATE.out.completeness_tsv_gz,
+            DEREPLICATE.out.hcfilter_tsv_gz,
+            DEREPLICATE.out.info_tsv_gz,
+            ANICLUSTER.out.tsv_gz,
+            AAICLUSTER.out.tsv_gz,
+            TAXONOMY.out.taxonomy_tsv_gz,
+            CRISPRHOST.out.crisprhost_tsv_gz,
+            PHISTHOST.out.phisthost_tsv_gz,
+            FUNCTION.out.protein2hash_tsv_gz,
+            FUNCTION.out.bakta_tsv_gz,
+            FUNCTION.out.foldseek_tsv_gz,
+            FUNCTION.out.interproscan_tsv_gz,
+            FUNCTION.out.card_tsv_gz,
+            FUNCTION.out.vfdb_tsv_gz,
+            FUNCTION.out.pharokka_tsv_gz,
+            FUNCTION.out.phold_tsv_gz,
+            FUNCTION.out.empathi_csv_gz,
+            ch_uhvdb_metadata_tsv_gz,
+            ch_uhvdb_protein_annotations_tsv_gz,
+            TAXONOMY.out.ictv_hits_tsv_gz,
+            CRISPRHOST.out.crispr_tsv_gz,
+            PHISTHOST.out.phist_tsv_gz,
+            UHVDB_DOWNLOAD.out.ictv_hits_tsv_gz,
+            UHVDB_DOWNLOAD.out.crispr_tsv_gz,
+            UHVDB_DOWNLOAD.out.phist_tsv_gz
+        )
 
     }
 

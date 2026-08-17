@@ -104,4 +104,7 @@ workflow DEREPLICATE {
     info_tsv_gz = UHVDB_ANIREPS.out.tsv_gz
     classify_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_classify" }
     completeness_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_hqfilter" }
+    hcfilter_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_hcfilter" }
+    seqhasher_tsv_gz = UHVDB_UNIQUEHASH.out.tsv_gz
+    mapping_tsv_gz = UHVDB_UNIQUEHASH.out.id_map_tsv_gz
 }

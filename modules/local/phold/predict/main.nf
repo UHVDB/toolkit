@@ -17,6 +17,10 @@ process PHOLD_PREDICT {
 
     script:
     """
+    ### Workaround: image torch==2.5.1; newer transformers refuse torch.load (CVE-2025-32434).
+    pip install --no-cache-dir --target ./tf_pin 'transformers==4.48.3'
+    export PYTHONPATH="\$PWD/tf_pin\${PYTHONPATH:+:\$PYTHONPATH}"
+
     ### Decompress
     gunzip -c ${faa_gz} > ${meta.id}.faa
 

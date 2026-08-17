@@ -21,7 +21,7 @@ process SEQKIT_FX2TAB {
         fx2tab \\
         ${args} \\
         ${fastx} \\
-        | pigz -p ${task.cpus} \\
+        | gzip \\
         > ${prefix}.tsv.gz
     """
 

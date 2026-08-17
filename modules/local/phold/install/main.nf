@@ -14,11 +14,31 @@ process PHOLD_INSTALL {
 
     script:
     """
+    ### Workaround: image torch==2.5.1; newer transformers refuse torch.load (CVE-2025-32434).
+    pip install --no-cache-dir --target ./tf_pin 'transformers==4.48.3'
+    export PYTHONPATH="\$PWD/tf_pin\${PYTHONPATH:+:\$PYTHONPATH}"
+
+    ### Image has phold but no foldseek binary; phold install needs it for makepaddedseqdb.
+    wget -q https://mmseqs.com/foldseek/foldseek-linux-gpu.tar.gz
+    tar -xzf foldseek-linux-gpu.tar.gz
+    export PATH="\$PWD/foldseek/bin:\$PATH"
+    command -v foldseek
+
     # download phold database with FoldSeek-GPU layout
     phold install \\
         -d phold_db \\
         -t ${task.cpus} \\
         --foldseek_gpu
+
+    ### Foldseek leaves absolute scrubbed-work symlinks for *_gpu*; rewrite to relative
+    ### siblings so storeDir/publishDir copy does not abort the Nextflow session.
+    (
+      cd phold_db
+      [[ -e all_phold_structures ]] && ln -sfn all_phold_structures all_phold_structures_gpu
+      [[ -e all_phold_structures_ca ]] && ln -sfn all_phold_structures_ca all_phold_structures_gpu_ca
+      [[ -e all_phold_structures_h ]] && ln -sfn all_phold_structures_h all_phold_structures_gpu_h
+      [[ -e all_phold_structures.source ]] && ln -sfn all_phold_structures.source all_phold_structures_gpu.source
+    )
     """
 
     stub:
