@@ -29,7 +29,7 @@ process UHVDB_METADATA {
     tuple val(meta19), path(phold_tsv_gz)
     tuple val(meta20), path(empathi_csv_gz)
     path(uhvdb_metadata_tsv_gz, stageAs: "uhvdb_old_metadata.tsv.gz")
-    path(uhvdb_protein_annotations_tsv_gz, stageAs: "uhvdb_old_protein_annotations.tsv.gz")
+    path(uhvdb_protein_annotations, stageAs: "uhvdb_old_protein_annotations")
 
     output:
     path("uhvdb_metadata.tsv.gz")            , emit: tsv_gz
@@ -37,7 +37,7 @@ process UHVDB_METADATA {
 
     script:
     def uhvdb_metadata = uhvdb_metadata_tsv_gz && uhvdb_metadata_tsv_gz.size() > 0 ? "--uhvdb-metadata ${uhvdb_metadata_tsv_gz}" : ""
-    def uhvdb_protein_annotations = uhvdb_protein_annotations_tsv_gz && uhvdb_protein_annotations_tsv_gz.size() > 0 ? "--uhvdb-protein-annotations ${uhvdb_protein_annotations_tsv_gz}" : ""
+    def protein_annot_arg = uhvdb_protein_annotations && uhvdb_protein_annotations.size() > 0 ? "--uhvdb-protein-annotations ${uhvdb_protein_annotations}" : ""
     """
     ### Build metadata and protein annotation tables
     uhvdb_build_metadata.py \\
@@ -62,7 +62,7 @@ process UHVDB_METADATA {
         --phold-tsv ${phold_tsv_gz} \\
         --empathi-csv ${empathi_csv_gz} \\
         ${uhvdb_metadata} \\
-        ${uhvdb_protein_annotations} \\
+        ${protein_annot_arg} \\
         --output-metadata uhvdb_metadata.tsv \\
         --output-protein-annotations uhvdb_protein_annotations.tsv
 

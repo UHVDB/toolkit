@@ -66,13 +66,10 @@ workflow TOOLKIT {
     ch_uhvdb_species_gani_tsv_gz = UHVDB_DOWNLOAD.out.species_gani_tsv_gz.collect()
     ch_uhvdb_proteins_faa_gz = UHVDB_DOWNLOAD.out.proteins_faa_gz.collect()
     ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
-    ch_uhvdb_protein_annotations_tsv_gz = UHVDB_DOWNLOAD.out.protein_annotations_tsv_gz.collect()
-
-    //
-    // MODULE: Convert protein annotations TSV to parquet for fast gene-coverage filtering
-    //
-    UHVDB_ANNOTATIONS_PARQUET(ch_uhvdb_protein_annotations_tsv_gz)
-    ch_uhvdb_protein_annotations_parquet = UHVDB_ANNOTATIONS_PARQUET.out.protein_annotations_parquet.collect()
+    ch_uhvdb_protein_annotations_parquet = UHVDB_DOWNLOAD.out.protein_annotations_parquet.collect()
+    ch_uhvdb_ictv_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.ictv_proteinsimilarity_tsv_gz.collect()
+    ch_uhvdb_crispr_tsv_gz = UHVDB_DOWNLOAD.out.crispr_tsv_gz.collect()
+    ch_uhvdb_phist_tsv_gz = UHVDB_DOWNLOAD.out.phist_tsv_gz.collect()
 
     //
     // MODULE: Download deacon index
@@ -215,7 +212,7 @@ workflow TOOLKIT {
         //
         FUNCTION(
             AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
-            ch_uhvdb_protein_annotations_tsv_gz
+            ch_uhvdb_protein_annotations_parquet
         )
 
         //
@@ -257,13 +254,13 @@ workflow TOOLKIT {
             FUNCTION.out.phold_tsv_gz,
             FUNCTION.out.empathi_csv_gz,
             ch_uhvdb_metadata_tsv_gz,
-            ch_uhvdb_protein_annotations_tsv_gz,
+            ch_uhvdb_protein_annotations_parquet,
             TAXONOMY.out.ictv_hits_tsv_gz,
             CRISPRHOST.out.crispr_tsv_gz,
             PHISTHOST.out.phist_tsv_gz,
-            UHVDB_DOWNLOAD.out.ictv_hits_tsv_gz,
-            UHVDB_DOWNLOAD.out.crispr_tsv_gz,
-            UHVDB_DOWNLOAD.out.phist_tsv_gz
+            ch_uhvdb_ictv_proteinsimilarity_tsv_gz,
+            ch_uhvdb_crispr_tsv_gz,
+            ch_uhvdb_phist_tsv_gz
         )
 
     }

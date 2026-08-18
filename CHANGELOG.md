@@ -19,10 +19,14 @@ Initial release of UHVDB/toolkit, created with the [nf-core](https://nf-co.re/) 
 ### `Changed`
 
 - PHIST_UHBDB now takes an AGC plus a sample-name list and runs `agc getset` in-job instead of unpacking persistent host FASTA tarballs from PHIST_EXTRACTHOSTS
+- `test_update` and `test_analyze` profiles now use `uhvdb_version = 'test'`, Bakta light, a shared `test_databases` cache, and smaller samplesheets; `-profile test` aliases `test_update`
+- CHECKV_DOWNLOAD retries the Zenodo tarball if the Kopah S3 download fails
 
 ### `Fixed`
 
 - PHIST_UHBDB extracts one gzipped FASTA per AGC sample (`agc getset -g 1`) instead of splitting contig headers into separate files; lower default `phist_host_chunk_size` (1000) and `maxForks` (10) to limit disk use
+- Wire UPDATE to `UHVDB_DOWNLOAD.out.ictv_proteinsimilarity_tsv_gz` and read existing protein annotations from parquet or TSV
+- CHECKV_DOWNLOAD uses BusyBox-compatible `wget` (drop GNU `--fail`) so the Singularity image can download the database
 
 ### `Dependencies`
 

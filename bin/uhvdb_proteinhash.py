@@ -41,8 +41,12 @@ def main(args=None):
     args = parse_args(args)
 
     if args.input_uhvdb_prothash_tsv != '':
-        # load UHVDB protein hashes (if provided)
-        uhvdb_prothash_df = pl.read_csv(args.input_uhvdb_prothash_tsv, separator='\t', columns=['protein_id', 'hash'])
+        # load UHVDB protein hashes (TSV or parquet)
+        uhvdb_path = args.input_uhvdb_prothash_tsv
+        if uhvdb_path.endswith('.parquet'):
+            uhvdb_prothash_df = pl.read_parquet(uhvdb_path, columns=['protein_id', 'hash'])
+        else:
+            uhvdb_prothash_df = pl.read_csv(uhvdb_path, separator='\t', columns=['protein_id', 'hash'])
         uhvdb_hashes = set(
             uhvdb_prothash_df["hash"]
         )

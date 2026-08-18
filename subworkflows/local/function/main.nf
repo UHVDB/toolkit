@@ -30,7 +30,7 @@ workflow FUNCTION {
 
     take:
     virus_faa_gz                      // channel: [ meta, faa.gz ]
-    uhvdb_protein_annotations_tsv_gz  // channel: uhvdb_protein_annotations.tsv.gz
+    uhvdb_protein_annotations  // channel: uhvdb_protein_annotations.parquet or .tsv.gz
 
     main:
 
@@ -99,7 +99,7 @@ workflow FUNCTION {
 
     UHVDB_PROTEINHASH(
         ch_unique_input,
-        uhvdb_protein_annotations_tsv_gz.first()
+        uhvdb_protein_annotations.map { annot -> annot instanceof List ? annot[0] : annot }
     )
 
     //

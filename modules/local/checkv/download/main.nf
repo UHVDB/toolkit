@@ -3,6 +3,8 @@ process CHECKV_DOWNLOAD {
     tag "CheckV-UHVDB 5.1"
     storeDir "${params.dbdir}/checkv/5.1"
     publishDir enabled: false
+    errorStrategy { task.attempt < 2 ? 'retry' : 'terminate' }
+    maxRetries 1
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -13,21 +15,19 @@ process CHECKV_DOWNLOAD {
     path "checkv_db", emit: checkv_db
 
     script:
-    if ( task.attempt == 1 ) {
-        """
-        # download database
-        wget https://s3.kopah.uw.edu/uhvdb-checkv/v5.1/checkv_db.tar.gz
+    def checkv_url = task.attempt == 1 ? params.checkv_s3 : params.checkv_zenodo
+    """
+    # download database
+    wget -O checkv_db.tar.gz ${checkv_url}
 
-        # extract database
-        mkdir -p checkv_db tmp
-        tar -xvf checkv_db.tar.gz -C ./tmp
-        mv tmp/*/*/ checkv_db/
+    # extract database
+    mkdir -p checkv_db tmp
+    tar -xvf checkv_db.tar.gz -C ./tmp
+    mv tmp/*/*/ checkv_db/
 
-        # cleanup
-        rm -rf tmp checkv_db.tar.gz
-        """
-    }
-    // TODO: add zenodo fallback
+    # cleanup
+    rm -rf tmp checkv_db.tar.gz
+    """
 
     stub:
     """

@@ -58,7 +58,7 @@ def parse_args(args=None):
     parser.add_argument(
         "--uhvdb-protein-annotations",
         required=False,
-        help="Existing UHVDB protein annotations TSV.",
+        help="Existing UHVDB protein annotations TSV or parquet.",
     )
     parser.add_argument("--output-metadata", required=True, help="Output metadata TSV.")
     parser.add_argument(
@@ -80,6 +80,18 @@ def _read_tsv(path, **kwargs):
     if df.height == 0:
         return None
     return df
+
+
+def _read_table(path, **kwargs):
+    if not path:
+        return None
+    try:
+        df = pl.read_parquet(path)
+        if df.height == 0:
+            return None
+        return df
+    except Exception:
+        return _read_tsv(path, **kwargs)
 
 
 def _normalise_seq_name(df):
@@ -574,7 +586,7 @@ def add_protein_annotations(metadata_df, args, existing_prot):
 def main(args=None):
     args = parse_args(args)
     existing = _normalise_seq_name(_read_tsv(args.uhvdb_metadata) if args.uhvdb_metadata else None)
-    existing_prot = _read_tsv(args.uhvdb_protein_annotations) if args.uhvdb_protein_annotations else None
+    existing_prot = _read_table(args.uhvdb_protein_annotations) if args.uhvdb_protein_annotations else None
     metadata_df = create_base_metadata(args)
     metadata_df = add_taxonomy(metadata_df, args, existing)
     metadata_df = add_host_predictions(metadata_df, args, existing)
