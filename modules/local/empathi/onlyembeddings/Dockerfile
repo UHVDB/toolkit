@@ -3,6 +3,13 @@
 # empathi==1.0.6 pins torch==2.3.0, which will replace the base torch.
 FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
+# git-lfs is required to clone Hugging Face Empathi models in EMPATHI_INSTALL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        git-lfs \
+    && git lfs install --system \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir \
         empathi==1.0.6 \
         transformers==4.43.1 \
