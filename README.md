@@ -35,7 +35,7 @@
 
 | URL | Release | Description | Total | Unique | Genomovars | Species | Genera | Families | Total Proteins | Unique proteins |
 |-----|---------|-------------|-------|--------|------------|---------|--------|----------|----------|-----------------|
-| https://zenodo.org/records/ | 6.0.0 | Adds viruses from VIRE, metaVR, OAVGC, MAGIC, and NCBI Virus | 1,541,381 | 1,155,490 | 925,604 | 291,605 | 53,506 | 1,590 | 56,910,883 | 22,619,873 |
+| https://zenodo.org/records/22019191 & https://zenodo.org/records/22086122 | 6.0.0 | Adds viruses from VIRE, metaVR, OAVGC, MAGIC, and NCBI Virus | 1,541,381 | 1,155,490 | 925,604 | 291,605 | 53,506 | 1,590 | 56,910,883 | 22,619,873 |
 
 <details>
 <summary><h3>Database history</h3></summary>
