@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::foldseek=10.941cd33
+- bioconda::seqkit=2.13.0

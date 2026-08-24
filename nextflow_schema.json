@@ -40,6 +40,28 @@
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",
                     "fa_icon": "fas fa-file-signature"
+                },
+                "dbdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Directory used as storeDir for downloaded databases.",
+                    "fa_icon": "fas fa-database",
+                    "hidden": true
+                }
+            }
+        },
+        "database_options": {
+            "title": "Database options",
+            "type": "object",
+            "fa_icon": "fas fa-database",
+            "description": "Options that control which reference databases the pipeline downloads.",
+            "properties": {
+                "uhvdb_version": {
+                    "type": "string",
+                    "default": "v6",
+                    "description": "UHVDB release to download and cache. Use 'test' to fetch the lightweight S3 test dataset.",
+                    "help_text": "Production runs should keep the default release. Files are fetched from Kopah S3 under uhvdb/<version>/analyze and uhvdb/<version>/update, including the CheckV database, geNomad hallmark HMM/metadata, and CRISPR spacer FASTA/TSV in the update prefix. Setting this to 'test' downloads the small files from s3://uhvdb/test/, stores them under dbdir/uhvdb/test, skips InterProScan download and annotation, and limits PHISTHOST to small UHBDB AGC archives.",
+                    "fa_icon": "fas fa-code-branch"
                 }
             }
         },
@@ -197,6 +219,9 @@
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/database_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

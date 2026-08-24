@@ -1,6 +1,0 @@
-channels:
-- conda-forge
-- bioconda
-dependencies:
-- conda-forge::unzip=6.0
-- conda-forge::wget=1.25.0

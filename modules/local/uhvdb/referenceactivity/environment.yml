@@ -7,6 +7,4 @@ dependencies:
 - conda-forge::polars=1.40.0
 - conda-forge::pyarrow=24.0.0
 - conda-forge::scikit-learn=1.5.1
-- pip
-- pip:
-  - joblib==1.5.3
+- conda-forge::joblib=1.5.3

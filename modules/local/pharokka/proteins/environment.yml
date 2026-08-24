@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::pharokka=1.7.5
+- bioconda::seqkit=2.13.0

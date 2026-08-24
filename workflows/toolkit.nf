@@ -4,9 +4,10 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { UHVDB_DOWNLOAD                } from '../modules/local/uhvdb/download'
+include { UHVDB_ANALYZEDOWNLOAD         } from '../modules/local/uhvdb/analyzedownload'
+include { UHVDB_UPDATEDOWNLOAD          } from '../modules/local/uhvdb/updatedownload'
+include { UHVDB_ANNOTATIONS_PARQUET     } from '../modules/local/uhvdb/annotationsparquet'
 include { DEACON_INDEXFETCH             } from '../modules/local/deacon/indexfetch'
-include { CHECKV_DOWNLOAD               } from '../modules/local/checkv/download'
 include { SRACHA_FASTP_DEACON_MEGAHIT   } from '../modules/local/sracha_fastp_deacon_megahit'
 include { FASTP_DEACON_MEGAHIT          } from '../modules/local/fastp_deacon_megahit'
 include { ASSEMBLY                      } from '../subworkflows/local/assembly'
@@ -14,8 +15,18 @@ include { CLASSIFY                      } from '../subworkflows/local/classify'
 include { HQFILTER                      } from '../subworkflows/local/hqfilter'
 include { DEREPLICATE                   } from '../subworkflows/local/dereplicate'
 include { ANICLUSTER                    } from '../subworkflows/local/anicluster'
-include { AAICLUSTER             } from '../subworkflows/local/aaicluster'
-// include { REFERENCEANALYZE       } from '../subworkflows/local/referenceanalyze'
+include { AAICLUSTER                    } from '../subworkflows/local/aaicluster'
+include { rmEmptyFastAs; add_split      } from '../subworkflows/local/functions/main'
+include { CSVTK_SEQKIT                  } from '../modules/local/csvtk_seqkit/main'
+include { SEQKIT_SPLIT2                 } from '../modules/local/seqkit/split2/main'
+include { PYRODIGALGV                   } from '../modules/local/pyrodigalgv/main'
+include { TAXONOMY                      } from '../subworkflows/local/taxonomy/main'
+include { CRISPRHOST                    } from '../subworkflows/local/crisprhost/main'
+include { PHISTHOST                     } from '../subworkflows/local/phisthost/main'
+include { FUNCTION                      } from '../subworkflows/local/function/main'
+include { LIFESTYLE                     } from '../subworkflows/local/lifestyle/main'
+include { UPDATE                        } from '../subworkflows/local/update/main'
+include { REFERENCEANALYZE              } from '../subworkflows/local/referenceanalyze'
 include { paramsSummaryMap              } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc          } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML        } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -45,17 +56,14 @@ workflow TOOLKIT {
     def ch_multiqc_files = channel.empty()
 
     //
-    // MODULE: Download UHVDB database
+    // MODULE: Download UHVDB analyze files
     //
-    UHVDB_DOWNLOAD()
-    ch_uhvdb_metadata_tsv_gz = UHVDB_DOWNLOAD.out.metadata_tsv_gz.collect()
-    ch_uhvdb_metadata_sylphtax_tsv_gz = UHVDB_DOWNLOAD.out.metadata_sylphtax_tsv_gz.collect()
-    ch_uhvdb_unique_reps_fna_gz = UHVDB_DOWNLOAD.out.unique_reps_fna_gz.collect()
-    ch_uhvdb_genomovars_gani_tsv_gz = UHVDB_DOWNLOAD.out.genomovars_gani_tsv_gz.collect()
-    ch_uhvdb_species_gani_tsv_gz = UHVDB_DOWNLOAD.out.species_gani_tsv_gz.collect()
-    ch_uhvdb_proteins_faa_gz = UHVDB_DOWNLOAD.out.proteins_faa_gz.collect()
-    ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_DOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
-    ch_uhvdb_protein_annotations_tsv_gz = UHVDB_DOWNLOAD.out.protein_annotations_tsv_gz.collect()
+    UHVDB_ANALYZEDOWNLOAD()
+    ch_uhvdb_metadata_tsv_gz = UHVDB_ANALYZEDOWNLOAD.out.metadata_tsv_gz.collect()
+    ch_uhvdb_metadata_sylphtax_tsv_gz = UHVDB_ANALYZEDOWNLOAD.out.metadata_sylphtax_tsv_gz.collect()
+    ch_uhvdb_unique_reps_fna_gz = UHVDB_ANALYZEDOWNLOAD.out.unique_reps_fna_gz.collect()
+    ch_uhvdb_proteins_faa_gz = UHVDB_ANALYZEDOWNLOAD.out.proteins_faa_gz.collect()
+    ch_uhvdb_protein_annotations_parquet = UHVDB_ANALYZEDOWNLOAD.out.protein_annotations_parquet.collect()
 
     //
     // MODULE: Download deacon index
@@ -66,10 +74,21 @@ workflow TOOLKIT {
 
     if ( params.run_update  ) {
         //
-        // MODULE: Download UHVDB-CheckV database
+        // MODULE: Download UHVDB update files
         //
-        CHECKV_DOWNLOAD()
-        ch_checkv_db = CHECKV_DOWNLOAD.out.checkv_db.first()
+        UHVDB_UPDATEDOWNLOAD()
+        ch_uhvdb_genomovars_gani_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.genomovars_gani_tsv_gz.collect()
+        ch_uhvdb_species_gani_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.species_gani_tsv_gz.collect()
+        ch_uhvdb_proteinsimilarity_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.proteinsimilarity_tsv_gz.collect()
+        ch_uhvdb_ictv_proteinsimilarity_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.ictv_proteinsimilarity_tsv_gz.collect()
+        ch_uhvdb_crispr_parquet = UHVDB_UPDATEDOWNLOAD.out.crispr_parquet.collect()
+        ch_uhvdb_phist_parquet = UHVDB_UPDATEDOWNLOAD.out.phist_parquet.collect()
+        ch_uhvdb_checkv_db = UHVDB_UPDATEDOWNLOAD.out.checkv_db.collect()
+        ch_uhvdb_genomad_1_9_hallmarks_hmm = UHVDB_UPDATEDOWNLOAD.out.genomad_1_9_hallmarks_hmm.collect()
+        ch_uhvdb_genomad_metadata_v1_9_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.genomad_metadata_v1_9_tsv_gz.collect()
+        ch_uhvdb_spacers_fna_gz = UHVDB_UPDATEDOWNLOAD.out.spacers_fna_gz
+        ch_uhvdb_spacers_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.spacers_tsv_gz
+    
 
         //
         // SUBWORKFLOW: Assemble reads
@@ -92,7 +111,9 @@ workflow TOOLKIT {
         CLASSIFY(
             ch_fastas,
             ch_dtr_sequences,
-            ch_checkv_db
+            ch_uhvdb_checkv_db,
+            ch_uhvdb_genomad_1_9_hallmarks_hmm,
+            ch_uhvdb_genomad_metadata_v1_9_tsv_gz
         )
 
         //
@@ -102,7 +123,7 @@ workflow TOOLKIT {
             CLASSIFY.out.confident_fna_gz,
             CLASSIFY.out.complete_fna_gz,
             CLASSIFY.out.classify_tsv_gz,
-            ch_checkv_db
+            ch_uhvdb_checkv_db
         )
 
         //
@@ -138,87 +159,136 @@ workflow TOOLKIT {
             ch_uhvdb_proteinsimilarity_tsv_gz
         )
 
-        // //
-        // // MODULE: Extract new genomovar reps that are not species reps
-        // //
-        // CSVTK_SEQKIT(
-        //     ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(ANICLUSTER.out.new_fna_gz)),
-        //     "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f uhvdb_id --out-delimiter '\t'",
-        //     "--invert-match",
-        //     "genomovar_not_species_reps"
-        // )
-
-        // //
-        // // MODULE: Split new genomovar reps into chunks
-        // //
-        // SEQKIT_SPLIT2(
-        //     rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz),
-        //     params.new_genomovar_chunk_size
-        // )
-        // ch_split_genomovar_reps_fna_gz = SEQKIT_SPLIT2.out.fastx
-        //     .transpose()
-        //     .map{ meta, fastx ->
-        //         [ add_split(meta, fastx.getName()), [ fastx ] ] }
-
-        // //
-        // // MODULE: Predict proteins for new genomovar reps
-        // //
-        // PYRODIGALGV(
-        //     rmEmptyFastAs(ch_split_genomovar_reps_fna_gz)
-        // )
-
-        // //
-        // // SUBWORKFLOW: Annotate viruses with taxonomy
-        // //
-        // TAXONOMY(
-        //     AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
-        //     DEREPLICATE.out.classify_tsv_gz,
-        //     ch_uhvdb_metadata_tsv_gz,
-        //     ch_uhvdb_metadata_sylphtax_tsv_gz
-        // )
+        //
+        // MODULE: Extract new genomovar reps that are not species reps
+        // Join to DEREPLICATE new genomovar FASTA (meta.id new_genomovar_reps), not
+        // ANICLUSTER.new_fna_gz (remapped to new_species_reps), so the join keys match
+        // and invert-match can select non-species reps from the full genomovar set.
+        //
+        CSVTK_SEQKIT(
+            ANICLUSTER.out.tsv_gz.join(rmEmptyFastAs(DEREPLICATE.out.new_fna_gz)),
+            "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f uhvdb_id --out-delimiter '\t'",
+            "--invert-match",
+            "genomovar_not_species_reps"
+        )
 
         //
-        // MODULE: Download CRISPR spacer database
+        // MODULE: Split new genomovar reps into chunks
         //
+        SEQKIT_SPLIT2(
+            rmEmptyFastAs(CSVTK_SEQKIT.out.fna_gz),
+            10000
+        )
+        ch_split_genomovar_reps_fna_gz = SEQKIT_SPLIT2.out.fastx
+            .transpose()
+            .map{ meta, fastx ->
+                [ add_split(meta, fastx.getName()), [ fastx ] ] }
+
+        //
+        // MODULE: Predict proteins for new genomovar reps
+        //
+        PYRODIGALGV(
+            ch_split_genomovar_reps_fna_gz
+        )
+
+        //
+        // SUBWORKFLOW: Annotate viruses with taxonomy
+        //
+        TAXONOMY(
+            AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+            DEREPLICATE.out.classify_tsv_gz
+        )
+
 
         //
         // SUBWORKFLOW: Annotate viruses host using CRISPR spacers
         //
-
-        //
-        // MODULE: Download UHBDB database
-        //
+        CRISPRHOST(
+            AAICLUSTER.out.split_fna_gz.mix(ch_split_genomovar_reps_fna_gz),
+            ch_uhvdb_spacers_fna_gz,
+            ch_uhvdb_spacers_tsv_gz
+        )
 
         //
         // SUBWORKFLOW: Annotate viruses hosts using PHIST
         //
+        PHISTHOST(
+            AAICLUSTER.out.split_fna_gz.mix(ch_split_genomovar_reps_fna_gz)
+        )
 
         //
         // SUBWORKFLOW: Annotate viruses with functions
         //
+        FUNCTION(
+            AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+            ch_uhvdb_protein_annotations_parquet
+        )
 
         //
         // SUBWORKFLOW: Annotate viruses with lifestyles
         //
 
+        LIFESTYLE(
+            DEREPLICATE.out.new_fna_gz,
+            DEREPLICATE.out.classify_tsv_gz,
+            FUNCTION.out.pharokka_tsv_gz,
+            FUNCTION.out.phold_tsv_gz,
+            FUNCTION.out.empathi_csv_gz,
+            FUNCTION.out.protein2hash_tsv_gz,
+            ch_uhvdb_metadata_tsv_gz
+        )
+
         //
         // SUBWORKFLOW: Update UHVDB with new viruses
         //
+        UPDATE(
+            DEREPLICATE.out.seqhasher_tsv_gz,
+            DEREPLICATE.out.mapping_tsv_gz,
+            DEREPLICATE.out.classify_tsv_gz,
+            DEREPLICATE.out.completeness_tsv_gz,
+            DEREPLICATE.out.hcfilter_tsv_gz,
+            DEREPLICATE.out.info_tsv_gz,
+            ANICLUSTER.out.tsv_gz,
+            AAICLUSTER.out.tsv_gz,
+            TAXONOMY.out.taxonomy_tsv_gz,
+            CRISPRHOST.out.crisprhost_tsv_gz,
+            PHISTHOST.out.phisthost_tsv_gz,
+            FUNCTION.out.protein2hash_tsv_gz,
+            FUNCTION.out.bakta_tsv_gz,
+            FUNCTION.out.foldseek_tsv_gz,
+            FUNCTION.out.interproscan_tsv_gz,
+            FUNCTION.out.card_tsv_gz,
+            FUNCTION.out.vfdb_tsv_gz,
+            FUNCTION.out.pharokka_tsv_gz,
+            FUNCTION.out.phold_tsv_gz,
+            FUNCTION.out.empathi_csv_gz,
+            ch_uhvdb_metadata_tsv_gz,
+            ch_uhvdb_protein_annotations_parquet,
+            AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+            TAXONOMY.out.ictv_hits_tsv_gz,
+            CRISPRHOST.out.crispr_tsv_gz,
+            PHISTHOST.out.phist_tsv_gz,
+            ch_uhvdb_ictv_proteinsimilarity_tsv_gz,
+            ch_uhvdb_crispr_parquet,
+            ch_uhvdb_phist_parquet
+        )
 
     }
 
-    // if ( params.run_analyze ) {
-    //     //
-    //     // SUBWORKFLOW: Analyze viruses
-    //     //
-    //     REFERENCEANALYZE(
-    //         ch_spring,
-    //         ch_uhvdb_unique_reps_fna_gz,
-    //         ch_uhvdb_metadata_tsv_gz,
-    //         ch_uhvdb_metadata_sylphtax_tsv_gz,
-    //         ch_uhvdb_protein_annotations_tsv_gz
-    //     )
-    // }
+    if ( params.run_analyze ) {
+        //
+        // SUBWORKFLOW: Analyse viruses
+        //
+        REFERENCEANALYZE(
+            reads,
+            sras,
+            ch_deacon_idx,
+            ch_uhvdb_unique_reps_fna_gz,
+            ch_uhvdb_metadata_tsv_gz,
+            ch_uhvdb_metadata_sylphtax_tsv_gz,
+            ch_uhvdb_protein_annotations_parquet
+        )
+    }
 
     //
     // Collate and save software versions

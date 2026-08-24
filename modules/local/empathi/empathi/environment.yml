@@ -1,0 +1,17 @@
+channels:
+- conda-forge
+- bioconda
+- pytorch
+dependencies:
+- joblib=1.2.0
+- numpy=1.26.4
+- pandas=2.2.1
+- pytorch::pytorch=2.3.0
+- pytorch::pytorch-cuda=12.1
+- scipy=1.13.1
+- scikit-learn=1.5.0
+- transformers=4.43.1
+- sentencepiece=0.2.0
+- pip
+- pip:
+  - empathi==1.0.6

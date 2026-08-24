@@ -9,7 +9,7 @@ process UHVDB_GENECOVERAGE {
 
     input:
     tuple val(meta), path(bam)
-    path(annotations_tsv_gz)
+    path(annotations)
 
     output:
     tuple val(meta), path("*.gene_coverage.tsv.gz"), emit: tsv_gz
@@ -24,7 +24,8 @@ process UHVDB_GENECOVERAGE {
     ### Compute per-gene coverage metrics
     uhvdb_genecoverage.py \\
         --bam ${bam} \\
-        --annotations ${annotations_tsv_gz} \\
+        --annotations ${annotations} \\
+        --threads ${task.cpus} \\
         --output ${prefix}.gene_coverage.tsv \\
         ${args}
 

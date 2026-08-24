@@ -1,0 +1,5 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::agc=3.2.1

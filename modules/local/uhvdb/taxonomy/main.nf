@@ -3,9 +3,9 @@ process UHVDB_TAXONOMY {
     label 'process_low'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
         'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/30/3056eb370847d66f9690e620637cc60f0960b5c006aacf0e72651efb90e570ea/data':
-        'community.wave.seqera.io/library/fastexcel_polars:14bb0a75e935c888' }"
+        'community.wave.seqera.io/library/fastexcel_polars:47ba663f9908c31b' }"
 
     input:
     tuple val(meta), path(normscore_tsv_gz)
@@ -26,12 +26,12 @@ process UHVDB_TAXONOMY {
         --vmr_url ${vmr_url} \\
         --output ${meta.id}.tsv
 
-    ### Compress
-    gzip ${meta.id}.tsv
+    ### Compress (container has no gzip binary)
+    python -c "import gzip, shutil, os; src='${meta.id}.tsv'; shutil.copyfileobj(open(src,'rb'), gzip.open(src+'.gz','wb')); os.unlink(src)"
     """
 
     stub:
     """
-    echo "" | gzip > ${meta.id}.tsv.gz
+    python -c "import gzip; gzip.open('${meta.id}.tsv.gz', 'wt').write('')"
     """
 }

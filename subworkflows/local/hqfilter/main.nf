@@ -14,7 +14,7 @@ workflow HQFILTER {
     virus_fna_gz    // channel: [ val(meta), fna ]
     complete_fna_gz // channel: [ val(meta), fna ]
     classify_tsv_gz // channel: [ val(meta), tsv ]
-    checkv_db       // channel: [ val(meta), checkv_db ]
+    checkv_db       // channel: [ checkv_db ]
 
     main:
     //
@@ -42,7 +42,10 @@ workflow HQFILTER {
     //
     KMERDB_LZANI_CSVTK_SEQKIT(
         VCLUST_CSVTK_SEQKIT.out.fna_gz,
-        checkv_db.map { db -> [ [ id: 'checkv_reps' ], db.resolve('genome_db/checkv_reps.fna') ] }
+        checkv_db.map { db ->
+            def db_dir = (db instanceof List || db instanceof Collection) ? db.first() : db
+            [ [ id: 'checkv_reps' ], db_dir.resolve('genome_db/checkv_reps.fna') ]
+        }
     )
 
     //

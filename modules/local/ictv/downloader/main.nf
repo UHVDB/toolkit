@@ -7,21 +7,21 @@ process ICTV_DOWNLOADER {
         'community.wave.seqera.io/library/ictv-downloader:65be71184be13039' }"
 
     output:
-    path("*.faa.gz")                      , emit: faa_gz
+    path("*.fna.gz")                      , emit: fna_gz
 
     script:
     """
-    ### Download ICTV sequences
+    ### Download ICTV genomic nucleotide sequences from the current VMR
     ictv_downloader.py \\
-        --type cds-aa \\
-        -o ictv_cds.faa
+        --type genomic \\
+        -o ictv_genomes.fna
 
     ### Compress
-    gzip ictv_cds.faa
+    gzip ictv_genomes.fna
     """
 
     stub:
     """
-    echo "" | gzip > ictv_cds.faa.gz
+    echo "" | gzip > ictv_genomes.fna.gz
     """
 }

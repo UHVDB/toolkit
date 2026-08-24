@@ -5,9 +5,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## v1.0.0dev - [date]
 
-Initial release of UHVDB/toolkit, created with the [nf-core](https://nf-co.re/) template.
+Initial release of the updated UHVDB/toolkit, created using the [nf-core](https://nf-co.re/) template.
 
 ### `Added`
+
+### `Changed`
 
 ### `Fixed`
 

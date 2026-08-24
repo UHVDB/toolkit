@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::taxopy=0.14.0
+- conda-forge::polars=1.43.2

@@ -202,6 +202,7 @@ workflow AAICLUSTER {
     )
 
     emit:
+    split_fna_gz = ch_split_species_reps_fna_gz
     tsv_gz = UHVDB_AAICLUSTER.out.tsv_gz
     faa_gz = PYRODIGALGV.out.faa_gz.filter{ meta, _faa_gz -> meta.id.contains("new_species_reps") }
 }
