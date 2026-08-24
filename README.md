@@ -1,7 +1,6 @@
 # UHVDB/toolkit
 
 [![Cite Publication](https://img.shields.io/badge/Cite%20Us!-Cite%20Publication-orange)](https://doi.org/10.64898/2026.05.01.722327)
-[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.19831611-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.19831611)
 [![Get help on Slack](http://img.shields.io/badge/slack-uhvdb-4A154B?labelColor=000000&logo=slack)](https://join.slack.com/t/uhvdb/shared_invite/zt-3x7msmig7-T1QMnbuZe2RAf_FBNIj_qg)
 <!-- [![Open in GitHub Codespaces](https://img.shields.io/badge/Open_In_GitHub_Codespaces-black?labelColor=grey&logo=github)](https://github.com/codespaces/new/UHVDB/toolkit)
 [![GitHub Actions CI Status](https://github.com/UHVDB/toolkit/actions/workflows/nf-test.yml/badge.svg)](https://github.com/UHVDB/toolkit/actions/workflows/nf-test.yml)
