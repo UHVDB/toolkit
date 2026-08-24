@@ -54,7 +54,7 @@
 
 Below is a schematic overview of the UHVDB toolkit, followed by a brief explanation of each workflow in the toolkit.
 
-![UHVDB toolkit schematic](assets/uhvdb-diagram.png)
+![UHVDB toolkit schematic](assets/uhvdb-schematic.png)
 
 <details>
 <summary><h3>UHVDB update subworkflow descriptions</h3></summary>
