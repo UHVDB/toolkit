@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+import gzip
+import re
 import sys
 
 import polars as pl
@@ -27,6 +29,7 @@ PROTEIN_ANNOT_COLS = [
     "pharokka_annot", "pharokka_category", "phold_category", "phold_annot",
     "empathi_annot",
 ]
+PROTEIN_COORD_COLS = ["start", "end", "strand", "partial"]
 
 
 def parse_args(args=None):
@@ -65,6 +68,12 @@ def parse_args(args=None):
         "--output-protein-annotations",
         required=True,
         help="Output protein annotations TSV.",
+    )
+    parser.add_argument(
+        "--protein-faa",
+        nargs="*",
+        default=[],
+        help="Pyrodigal-gv protein FASTA files whose headers contain start/end/strand/partial.",
     )
     parser.add_argument("--version", action="version", version="1.0.0")
     return parser.parse_args(args)
@@ -138,6 +147,82 @@ def _concat_new_and_existing(new_df, existing_df, cols):
         if "uhvdb_id" in present:
             frames.append(existing_df.select(present).unique("uhvdb_id"))
     return pl.concat(frames, how="vertical_relaxed").unique("uhvdb_id", keep="first")
+
+
+def _unique_uhvdb_id(df):
+    if df is None or df.is_empty() or "uhvdb_id" not in df.columns:
+        return df
+    return df.unique("uhvdb_id", keep="first")
+
+
+def _existing_annotation_rows(existing, columns, keep_ids, exclude_ids):
+    if existing is None or "uhvdb_id" not in existing.columns:
+        return None
+    present = [col for col in columns if col in existing.columns]
+    if "uhvdb_id" not in present:
+        return None
+    return (
+        existing
+        .select(present)
+        .filter(pl.col("uhvdb_id").is_in(list(keep_ids)))
+        .filter(~pl.col("uhvdb_id").is_in(list(exclude_ids)))
+        .unique("uhvdb_id", keep="first")
+    )
+
+
+def _unique_hash(df):
+    if df is None or df.is_empty() or "hash" not in df.columns:
+        return df
+    return df.unique("hash", keep="first")
+
+
+def _parse_pyrodigal_header(header):
+    if header.startswith(">"):
+        header = header[1:]
+    parts = header.split(" # ")
+    protein_id = parts[0].split()[0]
+    start = end = strand = partial = None
+    if len(parts) >= 4:
+        try:
+            start = int(parts[1])
+            end = int(parts[2])
+            strand_token = parts[3].split()[0]
+            if strand_token in {"1", "+"}:
+                strand = "+"
+            elif strand_token in {"-1", "-"}:
+                strand = "-"
+        except ValueError:
+            pass
+    if len(parts) >= 5:
+        match = re.search(r"partial=(\d+)", parts[4])
+        if match:
+            partial = 0 if match.group(1) == "00" else 1
+    return protein_id, start, end, strand, partial
+
+
+def _coords_from_protein_faa(paths):
+    rows = []
+    for path in paths:
+        if not path:
+            continue
+        opener = gzip.open if str(path).endswith(".gz") else open
+        with opener(path, "rt") as handle:
+            for line in handle:
+                if not line.startswith(">"):
+                    continue
+                protein_id, start, end, strand, partial = _parse_pyrodigal_header(line.strip())
+                rows.append(
+                    {
+                        "protein_id": protein_id,
+                        "start": start,
+                        "end": end,
+                        "strand": strand,
+                        "partial": partial,
+                    }
+                )
+    if not rows:
+        return None
+    return pl.DataFrame(rows).unique("protein_id", keep="first")
 
 
 def create_base_metadata(args):
@@ -256,17 +341,16 @@ def add_taxonomy(metadata_df, args, existing):
     taxonomy_df1 = taxonomy_df1.rename({
         src: dst for src, dst in rename_map.items() if src in taxonomy_df1.columns
     })
-    frames = [taxonomy_df1]
-    if existing is not None:
-        present = [col for col in taxonomy_df1.columns if col in existing.columns]
-        if "uhvdb_id" in present:
-            frames.append(
-                existing
-                .select(present)
-                .filter(pl.col("uhvdb_id").is_in(set(metadata_df["genomovar_rep"])))
-                .filter(~pl.col("uhvdb_id").is_in(set(taxonomy_df1["uhvdb_id"])))
-            )
-    taxonomy_df2 = pl.concat(frames, how="vertical_relaxed")
+    frames = [_unique_uhvdb_id(taxonomy_df1)]
+    existing_tax = _existing_annotation_rows(
+        existing,
+        taxonomy_df1.columns,
+        set(metadata_df["genomovar_rep"].drop_nulls()),
+        set(taxonomy_df1["uhvdb_id"]),
+    )
+    if existing_tax is not None and not existing_tax.is_empty():
+        frames.append(existing_tax)
+    taxonomy_df2 = _unique_uhvdb_id(pl.concat(frames, how="diagonal_relaxed"))
     return metadata_df.join(taxonomy_df2, left_on="genomovar_rep", right_on="uhvdb_id", how="left")
 
 
@@ -290,17 +374,16 @@ def add_host_predictions(metadata_df, args, existing):
                 pl.col("agreement").filter(pl.col("rank") == "family").first().alias("crispr_family_agreement"),
             ])
         )
-    crispr_frames = [crisprhost_df1]
-    if existing is not None and "uhvdb_id" in existing.columns:
-        present = [col for col in crisprhost_df1.columns if col in existing.columns]
-        if present and "uhvdb_id" in present:
-            crispr_frames.append(
-                existing
-                .select(present)
-                .filter(pl.col("uhvdb_id").is_in(set(metadata_df["genomovar_rep"])))
-                .filter(~pl.col("uhvdb_id").is_in(set(crisprhost_df1["uhvdb_id"])))
-            )
-    crisprhost_df2 = pl.concat(crispr_frames, how="vertical_relaxed")
+    crispr_frames = [_unique_uhvdb_id(crisprhost_df1)]
+    existing_crispr = _existing_annotation_rows(
+        existing,
+        crisprhost_df1.columns,
+        set(metadata_df["genomovar_rep"].drop_nulls()),
+        set(crisprhost_df1["uhvdb_id"]) if "uhvdb_id" in crisprhost_df1.columns else set(),
+    )
+    if existing_crispr is not None and not existing_crispr.is_empty():
+        crispr_frames.append(existing_crispr)
+    crisprhost_df2 = _unique_uhvdb_id(pl.concat(crispr_frames, how="diagonal_relaxed"))
 
     phisthost = _read_tsv(args.phisthost_tsv)
     if phisthost is None:
@@ -326,17 +409,16 @@ def add_host_predictions(metadata_df, args, existing):
                 pl.col("phist_family_agreement").cast(pl.Float64),
             ])
         )
-    phist_frames = [phisthost_df1]
-    if existing is not None and "uhvdb_id" in existing.columns:
-        present = [col for col in phisthost_df1.columns if col in existing.columns]
-        if present and "uhvdb_id" in present:
-            phist_frames.append(
-                existing
-                .select(present)
-                .filter(pl.col("uhvdb_id").is_in(set(metadata_df["genomovar_rep"])))
-                .filter(~pl.col("uhvdb_id").is_in(set(phisthost_df1["uhvdb_id"])))
-            )
-    phisthost_df2 = pl.concat(phist_frames, how="vertical_relaxed")
+    phist_frames = [_unique_uhvdb_id(phisthost_df1)]
+    existing_phist = _existing_annotation_rows(
+        existing,
+        phisthost_df1.columns,
+        set(metadata_df["genomovar_rep"].drop_nulls()),
+        set(phisthost_df1["uhvdb_id"]) if "uhvdb_id" in phisthost_df1.columns else set(),
+    )
+    if existing_phist is not None and not existing_phist.is_empty():
+        phist_frames.append(existing_phist)
+    phisthost_df2 = _unique_uhvdb_id(pl.concat(phist_frames, how="diagonal_relaxed"))
 
     combined_host_df1 = (
         crisprhost_df2
@@ -396,6 +478,7 @@ def add_host_predictions(metadata_df, args, existing):
     combined_host_df2 = combined_host_df1.with_columns([
         pl.col("final_host_pred").replace(species_to_lineage).str.replace(r"^s__", "d__").alias("final_host_lineage"),
     ])
+    combined_host_df2 = _unique_uhvdb_id(combined_host_df2)
     return metadata_df.join(combined_host_df2, left_on="genomovar_rep", right_on="uhvdb_id", how="left")
 
 
@@ -516,6 +599,15 @@ def add_protein_annotations(metadata_df, args, existing_prot):
     except Exception:
         empathi_df = _empty_annot(["hash", "empathi_annot"])
 
+    bakta_df = _unique_hash(bakta_df)
+    foldseek_df = _unique_hash(foldseek_df)
+    ips_df = _unique_hash(ips_df)
+    card_df = _unique_hash(card_df)
+    vfdb_df = _unique_hash(vfdb_df)
+    pharokka_df = _unique_hash(pharokka_df)
+    phold_df = _unique_hash(phold_df)
+    empathi_df = _unique_hash(empathi_df)
+
     # Keep every protein on current genomovar reps. FUNCTION only annotates novel
     # hashes, so shared-hash proteins must left-join Bakta/PHROG/Empathi and then
     # copy existing annotations onto the new protein_id by hash.
@@ -547,18 +639,60 @@ def add_protein_annotations(metadata_df, args, existing_prot):
                 for col in old_annot_cols
             ]).drop([f"{col}__old" for col in old_annot_cols])
 
+    faa_coords = _coords_from_protein_faa(args.protein_faa)
+    if faa_coords is not None:
+        combined_protein_annotations_df1 = combined_protein_annotations_df1.join(
+            faa_coords.rename({col: f"{col}__faa" for col in PROTEIN_COORD_COLS if col in faa_coords.columns}),
+            on="protein_id",
+            how="left",
+        )
+        for col in PROTEIN_COORD_COLS:
+            faa_col = f"{col}__faa"
+            if faa_col in combined_protein_annotations_df1.columns:
+                if col in combined_protein_annotations_df1.columns:
+                    combined_protein_annotations_df1 = combined_protein_annotations_df1.with_columns(
+                        pl.coalesce([pl.col(col), pl.col(faa_col)]).alias(col)
+                    ).drop(faa_col)
+                else:
+                    combined_protein_annotations_df1 = combined_protein_annotations_df1.rename({faa_col: col})
+
+    if existing_prot is not None and "protein_id" in existing_prot.columns:
+        existing_coord_cols = [col for col in PROTEIN_COORD_COLS if col in existing_prot.columns]
+        if existing_coord_cols:
+            existing_coords = (
+                existing_prot
+                .select(["protein_id"] + existing_coord_cols)
+                .unique("protein_id", keep="first")
+                .rename({col: f"{col}__old" for col in existing_coord_cols})
+            )
+            combined_protein_annotations_df1 = combined_protein_annotations_df1.join(
+                existing_coords, on="protein_id", how="left"
+            )
+            for col in existing_coord_cols:
+                old_col = f"{col}__old"
+                if col in combined_protein_annotations_df1.columns:
+                    combined_protein_annotations_df1 = combined_protein_annotations_df1.with_columns(
+                        pl.coalesce([pl.col(old_col), pl.col(col)]).alias(col)
+                    ).drop(old_col)
+                else:
+                    combined_protein_annotations_df1 = combined_protein_annotations_df1.rename({old_col: col})
+
     frames = [combined_protein_annotations_df1]
     if existing_prot is not None:
         existing_keep = (
             existing_prot
-            .filter(pl.col("genomovar_rep").is_in(current_reps))
+            .filter(pl.col("genomovar_rep").is_in(list(current_reps)))
         )
         if "protein_id" in existing_keep.columns:
             existing_keep = existing_keep.filter(
-                ~pl.col("protein_id").is_in(set(combined_protein_annotations_df1["protein_id"]))
+                ~pl.col("protein_id").is_in(combined_protein_annotations_df1["protein_id"].to_list())
             )
-        frames.append(existing_keep)
-    combined_protein_annotations_df2 = pl.concat(frames, how="vertical_relaxed")
+        if not existing_keep.is_empty():
+            frames.append(existing_keep)
+    combined_protein_annotations_df2 = (
+        pl.concat(frames, how="diagonal_relaxed")
+        .unique("protein_id", keep="first")
+    )
     combined_protein_annotations_df2.write_csv(args.output_protein_annotations, separator="\t")
 
     combined_protein_annotations_df3 = (
@@ -578,7 +712,9 @@ def add_protein_annotations(metadata_df, args, existing_prot):
             (((pl.col("pharokka_annot") == "portal protein").sum() == 1) | ((pl.col("phold_category") == "portal protein").sum() == 1) | ((pl.col("empathi_annot") == "pvp|portal").sum() == 1)).sum().alias("portal_hallmark"),
         ])
     )
-    metadata_df.join(combined_protein_annotations_df3, on="genomovar_rep", how="left").write_csv(
+    metadata_df.join(combined_protein_annotations_df3, on="genomovar_rep", how="left").unique(
+        "seq_name", keep="first"
+    ).write_csv(
         args.output_metadata, separator="\t"
     )
 

@@ -1,7 +1,7 @@
 include { UHVDB_METADATA                } from '../../../modules/local/uhvdb/metadata/main'
 include { FIND_CONCATENATE as FIND_CONCATENATE_ICTVHITS } from '../../../modules/nf-core/find/concatenate/main'
-include { FIND_CONCATENATEHEADERS as FIND_CONCATENATEHEADERS_CRISPRHITS } from '../../../modules/local/find/concatenateheaders/main'
-include { FIND_CONCATENATEHEADERS as FIND_CONCATENATEHEADERS_PHISTHITS } from '../../../modules/local/find/concatenateheaders/main'
+include { UHVDB_CONCATCRISPR            } from '../../../modules/local/uhvdb/concatcrispr/main'
+include { UHVDB_CONCATPHIST             } from '../../../modules/local/uhvdb/concatphist/main'
 
 workflow UPDATE {
 
@@ -28,12 +28,13 @@ workflow UPDATE {
     empathi_csv_gz
     uhvdb_metadata_tsv_gz
     uhvdb_protein_annotations_tsv_gz
+    protein_faa_gz
     ictv_hits_tsv_gz
     crispr_tsv_gz
     phist_tsv_gz
     uhvdb_ictv_hits_tsv_gz
-    uhvdb_crispr_tsv_gz
-    uhvdb_phist_tsv_gz
+    uhvdb_crispr_parquet
+    uhvdb_phist_parquet
 
     main:
 
@@ -62,7 +63,8 @@ workflow UPDATE {
         phold_tsv_gz,
         empathi_csv_gz,
         uhvdb_metadata_tsv_gz,
-        uhvdb_protein_annotations_tsv_gz
+        uhvdb_protein_annotations_tsv_gz,
+        protein_faa_gz.map { _meta, faa -> faa }.flatten().collect()
     )
 
     //
@@ -81,41 +83,39 @@ workflow UPDATE {
     )
 
     //
-    // MODULE: Combine new and existing CRISPR hit tables
+    // MODULE: Combine new and existing CRISPR hit tables into parquet
     //
-    FIND_CONCATENATEHEADERS_CRISPRHITS(
+    UHVDB_CONCATCRISPR(
         crispr_tsv_gz
             .mix(
-                uhvdb_crispr_tsv_gz.map { tsv_gz ->
-                    [ [ id: 'uhvdb_crispr' ], tsv_gz instanceof List ? tsv_gz[0] : tsv_gz ]
+                uhvdb_crispr_parquet.map { parquet ->
+                    [ [ id: 'uhvdb_crispr' ], parquet instanceof List ? parquet[0] : parquet ]
                 }
             )
-            .map { _meta, tsv_gz -> tsv_gz }
+            .map { _meta, hits -> hits }
             .collect()
-            .map { tsv_gzs -> [ [ id: 'uhvdb_crispr' ], tsv_gzs ] },
-        1
+            .map { hits -> [ [ id: 'uhvdb_crispr' ], hits ] }
     )
 
     //
-    // MODULE: Combine new and existing PHIST hit tables
+    // MODULE: Combine new and existing PHIST hit tables into parquet
     //
-    FIND_CONCATENATEHEADERS_PHISTHITS(
+    UHVDB_CONCATPHIST(
         phist_tsv_gz
             .mix(
-                uhvdb_phist_tsv_gz.map { tsv_gz ->
-                    [ [ id: 'uhvdb_phist' ], tsv_gz instanceof List ? tsv_gz[0] : tsv_gz ]
+                uhvdb_phist_parquet.map { parquet ->
+                    [ [ id: 'uhvdb_phist' ], parquet instanceof List ? parquet[0] : parquet ]
                 }
             )
-            .map { _meta, tsv_gz -> tsv_gz }
+            .map { _meta, hits -> hits }
             .collect()
-            .map { tsv_gzs -> [ [ id: 'uhvdb_phist' ], tsv_gzs ] },
-        1
+            .map { hits -> [ [ id: 'uhvdb_phist' ], hits ] }
     )
 
     emit:
     metadata_tsv_gz             = UHVDB_METADATA.out.tsv_gz
     protein_annotations_tsv_gz  = UHVDB_METADATA.out.protein_annotations_tsv_gz
     ictv_hits_tsv_gz            = FIND_CONCATENATE_ICTVHITS.out.file_out
-    crispr_tsv_gz               = FIND_CONCATENATEHEADERS_CRISPRHITS.out.file_out
-    phist_tsv_gz                = FIND_CONCATENATEHEADERS_PHISTHITS.out.file_out
+    crispr_parquet              = UHVDB_CONCATCRISPR.out.parquet
+    phist_parquet               = UHVDB_CONCATPHIST.out.parquet
 }

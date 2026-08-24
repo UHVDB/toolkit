@@ -14,6 +14,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 
 - [FastQC](#fastqc) - Raw read QC
 - [UHVDB update](#uhvdb-update) - Merged metadata and combined hit tables from `--run_update`
+- [Reference analyse](#reference-analyse) - Metagenome profiling and Caudoviricetes inactive-virus scores from `--run_analyze`
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -39,12 +40,24 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
   - `uhvdb_metadata.tsv.gz`: merged sequence metadata for the updated database.
   - `uhvdb_protein_annotations.tsv.gz`: merged per-protein annotations.
   - `uhvdb_ictv_hits.tsv.gz`: combined new and existing ICTV protein-similarity hits.
-  - `uhvdb_crispr.tsv.gz`: combined new and existing CRISPR spacer hits.
-  - `uhvdb_phist.tsv.gz`: combined new and existing PHIST host hits.
+  - `uhvdb_crispr.parquet`: combined new and existing CRISPR spacer hits.
+  - `uhvdb_phist.parquet`: combined new and existing PHIST host hits.
 
 </details>
 
-These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and PHIST tables from `UHVDB_DOWNLOAD` are concatenated with the new results when those files are present in the downloaded tarball.
+These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and PHIST tables from `UHVDB_UPDATEDOWNLOAD` are concatenated with the new results when those files are present in the downloaded update prefix.
+
+### Reference analyse
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/`
+  - `*_reference_activity.tsv.gz`: per-sample inactive-virus scores for detected Caudoviricetes species representatives.
+
+</details>
+
+These files are produced when `--run_analyze` is set and CoverM plus gene-coverage tables exist for a sample. The classifier is the figure_s15 Caudoviricetes model (`assets/models/phage_activity_model_full.joblib`). Class 1 is uninducible / inactive (bulk-detected, not enriched). `predicted_uninducible` is 1 when `predicted_inactive_probability` is at least the model's 90% precision threshold. `inactive_confidence_tier` is High / Medium / Low / No prediction from the 90 / 75 / 50% thresholds. Non-Caudoviricetes detections are not scored.
 
 ### MultiQC
 

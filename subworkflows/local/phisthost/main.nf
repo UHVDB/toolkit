@@ -46,9 +46,13 @@ workflow PHISTHOST {
 
     //
     // MODULE: List AGC samples and split into chunks (no persistent FASTA extract)
+    // Skipped for the test UHVDB; only small AGCs are processed
     //
+    ch_large_agcs = ch_agcs_branched.large
+        .filter { _meta, _agc -> params.uhvdb_version != 'test' }
+
     PHIST_LISTSETS(
-        ch_agcs_branched.large,
+        ch_large_agcs,
         params.phist_host_chunk_size
     )
 

@@ -1,6 +1,5 @@
 include { rmEmptyFastAs; rmEmptyTsvs; add_split             } from '../functions/main'
 include { GENOMAD_DOWNLOAD                                  } from '../../../modules/local/genomad/download/main'
-include { GENOMAD_DOWNLOADHALLMARKS                         } from '../../../modules/local/genomad/downloadhallmarks/main'
 include { VIRALVERIFY_DOWNLOAD                              } from '../../../modules/local/viralverify/download/main'
 include { SEQKIT_SEQ_REPLACE_SPLIT2                         } from '../../../modules/local/seqkit_seq_replace_split2/main'
 include { GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY               } from '../../../modules/local/genomad_checkv_viralverify_classify/main'
@@ -14,6 +13,8 @@ workflow CLASSIFY {
     fastas              // channel: [ val(meta), fna ]
     dtr_sequences       // channel: [ val(meta), txt ]
     checkv_db           // channel: [ checkv_db ]
+    hmm                 // channel: [ genomad_1_9_hallmarks.hmm ]
+    hmm_tsv_gz          // channel: [ genomad_metadata_v1.9.tsv.gz ]
 
     main:
     ch_confident_fna_gz = channel.empty()
@@ -26,13 +27,6 @@ workflow CLASSIFY {
     //
     GENOMAD_DOWNLOAD()
     ch_genomad_db = GENOMAD_DOWNLOAD.out.genomad_db.collect()
-
-    //
-    // MODULE: Download geNomad hallmark HMMs and metadata
-    //
-    GENOMAD_DOWNLOADHALLMARKS()
-    ch_hmm = GENOMAD_DOWNLOADHALLMARKS.out.hmm.collect()
-    ch_hmm_tsv_gz = GENOMAD_DOWNLOADHALLMARKS.out.tsv_gz.collect()
 
     //
     // MODULE: Download viralverify's database
@@ -66,8 +60,8 @@ workflow CLASSIFY {
         checkv_db,
         ch_viralverify_db,
         dtr_sequences,
-        ch_hmm,
-        ch_hmm_tsv_gz
+        hmm,
+        hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)
@@ -103,8 +97,8 @@ workflow CLASSIFY {
         checkv_db,
         ch_viralverify_db,
         dtr_sequences,
-        ch_hmm,
-        ch_hmm_tsv_gz
+        hmm,
+        hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)
@@ -141,8 +135,8 @@ workflow CLASSIFY {
         checkv_db,
         ch_viralverify_db,
         dtr_sequences,
-        ch_hmm,
-        ch_hmm_tsv_gz
+        hmm,
+        hmm_tsv_gz
     )
     ch_confident_fna_gz = ch_confident_fna_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.confident_fna_gz)
     ch_complete_fna_gz  = ch_complete_fna_gz.mix(SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.complete_fna_gz)

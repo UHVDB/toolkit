@@ -56,9 +56,11 @@ workflow FUNCTION {
     FOLDSEEK_CREATEDB(ch_virus_structures)
 
     //
-    // MODULE: Download InterProScan DB and setup
+    // MODULE: Download InterProScan DB and setup (skipped for the test UHVDB)
     //
-    INTERPROSCAN_DOWNLOAD()
+    if (params.uhvdb_version != 'test') {
+        INTERPROSCAN_DOWNLOAD()
+    }
 
     //
     // MODULE: Install Empathi models
@@ -142,12 +144,22 @@ workflow FUNCTION {
     )
 
     //
-    // MODULE: Run InterProScan on FoldSeek no-hit proteins
+    // MODULE: Run InterProScan on FoldSeek no-hit proteins (skipped for the test UHVDB)
     //
-    INTERPROSCAN_INTERPROSCAN(
-        rmEmptyFastAs(FOLDSEEK_EASYSEARCH.out.faa_gz),
-        INTERPROSCAN_DOWNLOAD.out.db.collect()
-    )
+    if (params.uhvdb_version != 'test') {
+        INTERPROSCAN_INTERPROSCAN(
+            rmEmptyFastAs(FOLDSEEK_EASYSEARCH.out.faa_gz),
+            INTERPROSCAN_DOWNLOAD.out.db.collect()
+        )
+        ch_interproscan_for_catnoheader = INTERPROSCAN_INTERPROSCAN.out.tsv_gz
+            .map { _meta, tsv_gz -> tsv_gz }
+            .collect()
+            .map { tsv_gz -> [ [ id: 'new_proteins_interproscan' ], tsv_gz, 'tsv.gz' ] }
+    } else {
+        ch_interproscan_for_catnoheader = Channel.of(
+            [ [ id: 'new_proteins_interproscan' ], file("${projectDir}/assets/empty.tsv"), 'tsv.gz' ]
+        )
+    }
 
     //
     // MODULE: Run DIAMOND against CARD database to identify AMR genes
@@ -194,7 +206,8 @@ workflow FUNCTION {
     //
     EMPATHI_ONLYEMBEDDINGS(
         ch_split_faa_gz,
-        EMPATHI_INSTALL.out.models.collect()
+        EMPATHI_INSTALL.out.models.collect(),
+        EMPATHI_INSTALL.out.hf_cache.collect()
     )
 
     //
@@ -202,7 +215,8 @@ workflow FUNCTION {
     //
     EMPATHI_EMPATHI(
         EMPATHI_ONLYEMBEDDINGS.out.csv_gz,
-        EMPATHI_INSTALL.out.models.collect()
+        EMPATHI_INSTALL.out.models.collect(),
+        EMPATHI_INSTALL.out.hf_cache.collect()
     )
 
     //
@@ -221,7 +235,7 @@ workflow FUNCTION {
     //
     ch_catnoheader_input = (
         FOLDSEEK_EASYSEARCH.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id: 'new_proteins_foldseek' ], tsv_gz, 'tsv.gz' ] }
-        .mix(INTERPROSCAN_INTERPROSCAN.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id: 'new_proteins_interproscan' ], tsv_gz, 'tsv.gz' ] })
+        .mix(ch_interproscan_for_catnoheader)
         .mix(CARD_DIAMOND.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id: 'new_proteins_card' ], tsv_gz, 'tsv.gz' ] })
         .mix(VFDB_DIAMOND.out.tsv_gz.map { _meta, tsv_gz -> tsv_gz }.collect().map { tsv_gz -> [ [ id: 'new_proteins_vfdb' ], tsv_gz, 'tsv.gz' ] })
     )

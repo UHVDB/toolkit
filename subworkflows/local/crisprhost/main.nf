@@ -1,4 +1,3 @@
-include { SPACER_DOWNLOAD                 } from '../../../modules/local/spacer/download/main'
 include { SPACEREXTRACTOR_CREATETARGETDB } from '../../../modules/local/spacerextractor/createtargetdb/main'
 include { SPACEREXTRACTOR_MAPTOTARGET    } from '../../../modules/local/spacerextractor/maptotarget/main'
 include { FIND_CONCATENATEHEADERS as FIND_CONCATENATEHEADERS_CRISPR     } from '../../../modules/local/find/concatenateheaders/main'
@@ -9,13 +8,10 @@ workflow CRISPRHOST {
 
     take:
     fna_gz
+    spacers_fna_gz
+    spacers_tsv_gz
 
     main:
-
-    //
-    // MODULE: Download CRISPR spacer database
-    //
-    SPACER_DOWNLOAD()
 
     //
     // MODULE: Create target database for spacer mapping
@@ -28,8 +24,8 @@ workflow CRISPRHOST {
     // MODULE: Align spacers to target database and determine taxonomy
     //
     SPACEREXTRACTOR_MAPTOTARGET(
-        SPACER_DOWNLOAD.out.fna_gz.map { fna -> [ [ id: 'spacers' ], fna ] }.first(),
-        SPACER_DOWNLOAD.out.tsv_gz.first(),
+        spacers_fna_gz.map { fna -> [ [ id: 'spacers' ], fna ] }.first(),
+        spacers_tsv_gz.first(),
         SPACEREXTRACTOR_CREATETARGETDB.out.db
     )
 

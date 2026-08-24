@@ -104,7 +104,11 @@ workflow DEREPLICATE {
     info_tsv_gz = UHVDB_ANIREPS.out.tsv_gz
     classify_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_classify" }
     completeness_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_hqfilter" }
-    hcfilter_tsv_gz = UHVDB_RENAME.out.tsv_gz.filter { meta, _tsv_gz -> meta.id == "combined_hcfilter" }
+    // Header-only hallmark TSVs are dropped by rmEmptyTsvs, so RENAME never emits
+    // combined_hcfilter. ifEmpty keeps UHVDB_METADATA from waiting on a closed channel.
+    hcfilter_tsv_gz = UHVDB_RENAME.out.tsv_gz
+        .filter { meta, _tsv_gz -> meta.id == "combined_hcfilter" }
+        .ifEmpty { [ [ id: 'combined_hcfilter' ], file("${projectDir}/assets/empty.tsv") ] }
     seqhasher_tsv_gz = UHVDB_UNIQUEHASH.out.tsv_gz
     mapping_tsv_gz = UHVDB_UNIQUEHASH.out.id_map_tsv_gz
 }

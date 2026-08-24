@@ -4,8 +4,7 @@ include { SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE     } from 
 include { FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE            } from '../../../modules/local/fastp_deacon_sylph_csvtk_seqkit_coverm_genecoverage/main'
 include { SYLPHTAX_TAXPROF                                               } from '../../../modules/nf-core/sylphtax/taxprof/main'
 include { SYLPHTAX_MERGE                                                 } from '../../../modules/nf-core/sylphtax/merge/main'
-// include { UHVDB_REFERENCEACTIVITY                                        } from '../../../modules/local/uhvdb/referenceactivity/main'
-// include { rmEmptyTsvs                                                    } from '../functions/main'
+include { UHVDB_REFERENCEACTIVITY                                        } from '../../../modules/local/uhvdb/referenceactivity/main'
 
 workflow REFERENCEANALYZE {
 
@@ -84,13 +83,18 @@ workflow REFERENCEANALYZE {
         'relative_abundance'
     )
 
-    // //
-    // // MODULE: Assign activity tier to each reference genome
-    // //
-    // UHVDB_REFERENCEACTIVITY(
-    //     rmEmptyTsvs(SYLPHTAX_TAXPROF.out.taxprof_output).combine(rmEmptyTsvs(ch_depth_tsv_gz), by:0),
-    //     uhvdb_metadata_tsv_gz,
-    //     "${projectDir}/assets/models/phage_activity_model_full.joblib",
-    //     "${projectDir}/assets/models/phage_model_metadata_full.joblib"
-    // )
+    ch_sylphtax_for_referenceactivity = SYLPHTAX_TAXPROF.out.taxprof_output
+        .join(ch_depth_tsv_gz)
+        .join(ch_profile_tsv)
+        .join(ch_gene_coverage_tsv_gz)
+
+    //
+    // MODULE: Score Caudoviricetes detections with the figure_s15 inactive-virus classifier
+    //
+    UHVDB_REFERENCEACTIVITY(
+        ch_sylphtax_for_referenceactivity,
+        uhvdb_metadata_tsv_gz,
+        channel.fromPath("${projectDir}/assets/models/phage_activity_model_full.joblib", checkIfExists: true).first(),
+        channel.fromPath("${projectDir}/assets/models/phage_model_metadata_full.joblib", checkIfExists: true).first()
+    )
 }

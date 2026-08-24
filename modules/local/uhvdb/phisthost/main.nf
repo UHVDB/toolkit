@@ -19,7 +19,7 @@ process UHVDB_PHISTHOST {
     """
     ### Extract headers from the first file and write to output CSV
     for file in input_files/*; do
-        zcat \$file | head -n 1 >> ${meta.id}.csv
+        zcat \$file | head -n 1 >> ${meta.id}.csv || [ \${PIPESTATUS[0]} -eq 0 -o \${PIPESTATUS[0]} -eq 141 ]
         break
     done
 

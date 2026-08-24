@@ -18,7 +18,7 @@ process UHVDB_CATHEADER {
     """
     ### Print header line
     for file in input_files/*; do
-        zcat \$file | head -n ${lines_per_header} >> ${meta.id}.${suffix.split('\\.')[0]}
+        zcat \$file | head -n ${lines_per_header} >> ${meta.id}.${suffix.split('\\.')[0]} || [ \${PIPESTATUS[0]} -eq 0 -o \${PIPESTATUS[0]} -eq 141 ]
         break
     done
 

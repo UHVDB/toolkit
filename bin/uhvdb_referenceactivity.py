@@ -1,322 +1,793 @@
 #!/usr/bin/env python
 
-### load packages
+"""Score Caudoviricetes detections with the figure_s15 inactive-virus classifier."""
+
 import argparse
-import joblib
 import math
 import sys
 
-import polars as pl
-import pandas as pd
+import joblib
 import numpy as np
+import polars as pl
+
+
+GENE_BREADTH_THRESHOLD = 0.8
+META_HALLMARK_COLLISION_COLS = (
+    "n_hallmarks",
+    "mcp_hallmark",
+    "terl_hallmark",
+    "portal_hallmark",
+)
+OUTPUT_COLS = [
+    "sample_id",
+    "group",
+    "species_cluster_id",
+    "uhvdb_id",
+    "ictv_class",
+    "predicted_inactive_probability",
+    "predicted_uninducible",
+    "inactive_confidence_tier",
+]
 
 
 def parse_args(args=None):
-    description = "Assign activity tier to each reference genome."
+    description = "Assign inactive-virus scores to Caudoviricetes reference detections."
     epilog = "Example usage: python uhvdb_referenceactivity.py --help"
 
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
     parser.add_argument(
         "-m",
         "--uhvdb_metadata",
-        help="Path to UHVDB metadata TSV (e.g. uhvdb_v5_final_metadata.tsv.gz).",
+        required=True,
+        help="Path to UHVDB metadata TSV (e.g. uhvdb_metadata.tsv.gz).",
     )
     parser.add_argument(
         "-c",
         "--coverm",
-        help="Path to coverm TSV (e.g. coverm_contig.tsv.gz).",
+        required=True,
+        help="Path to CoverM contig depth TSV (e.g. sample.depth.tsv.gz).",
     )
     parser.add_argument(
         "-s",
         "--sylph_tax",
-        help="Path to Sylph taxonomy TSV (e.g. sylph_tax.tsv.gz).",
+        required=True,
+        help="Path to sylph-tax MPA TSV (e.g. sample.sylphmpa).",
+    )
+    parser.add_argument(
+        "-r",
+        "--profile",
+        required=True,
+        help="Path to sylph profile TSV (e.g. sample.profile.tsv).",
+    )
+    parser.add_argument(
+        "-g",
+        "--gene_coverage",
+        required=True,
+        help="Path to gene-coverage TSV (e.g. sample.gene_coverage.tsv.gz).",
     )
     parser.add_argument(
         "-p",
         "--model_path",
+        required=True,
         help="Path to model file (e.g. phage_activity_model_full.joblib).",
     )
     parser.add_argument(
         "-md",
         "--metadata_path",
-        help="Path to metadata file (e.g. phage_model_metadata_full.joblib).",
+        required=True,
+        help="Path to model metadata file (e.g. phage_model_metadata_full.joblib).",
     )
     parser.add_argument(
         "-sid",
         "--sample_id",
-        help="Sample ID (e.g. samplesheet_se_fastq).",
+        required=True,
+        help="Sample ID.",
     )
     parser.add_argument(
-        "-g",
         "--group",
-        help="Coassembly or co-analysis group (e.g. group1).",
+        required=True,
+        help="Coassembly or co-analysis group.",
     )
     parser.add_argument(
         "-o",
         "--output",
-        help="Output TSV for Sylph (species_rep, final_virus_taxonomy, host_lineage; no header).",
+        required=True,
+        help="Output TSV path (uncompressed).",
     )
-    parser.add_argument("--version", action="version", version="1.0.0")
+    parser.add_argument("--version", action="version", version="1.1.0")
     return parser.parse_args(args)
 
 
-def calculate_phage_to_host(sylph_tax, sample_id):
-    phage_host_ratio_lst = []
+def write_tsv(df, output_path):
+    """Write TSV without polars write_csv (sysinfo cgroup panic on SLURM)."""
+    cols = df.columns
+    with open(output_path, "w", encoding="utf-8", newline="") as fh:
+        fh.write("\t".join(cols) + "\n")
+        for row in df.iter_rows():
+            fh.write("\t".join("" if v is None else str(v) for v in row) + "\n")
 
-    # filter to virus rows
-    virus_df = (
-        pl.read_csv(sylph_tax, separator='\t', skip_rows=1, null_values=['NA'], new_columns=['clade_name', 'taxonomic_abundance', 'sequence_abundance', 'ani', 'coverage', 'virus_host'])
-            .filter(pl.col('virus_host').is_not_null())
-            .with_columns([
-                pl.col('virus_host').str.replace_all(';', '|'),
-                pl.lit(sample_id).alias('sample_id'),
-                pl.col('clade_name').str.replace(r'.*vSPECIES-', '').str.replace(r'\|.*', '').cast(pl.Int64).alias('species_cluster_id'),
-            ])
+
+def _read_csv(path, **kwargs):
+    kwargs.setdefault("null_values", ["NA", ""])
+    try:
+        df = pl.read_csv(path, **kwargs)
+    except Exception:
+        return None
+    if df.height == 0:
+        return None
+    return df
+
+
+def _parse_containment_frac(s):
+    if s is None or not isinstance(s, str) or "/" not in s:
+        return None
+    try:
+        a, b = s.split("/", 1)
+        a, b = float(a), float(b)
+        return float(a / b) if b else None
+    except Exception:
+        return None
+
+
+def _empty_output():
+    return pl.DataFrame(
+        schema={
+            "sample_id": pl.Utf8,
+            "group": pl.Utf8,
+            "species_cluster_id": pl.Int64,
+            "uhvdb_id": pl.Utf8,
+            "ictv_class": pl.Utf8,
+            "predicted_inactive_probability": pl.Float64,
+            "predicted_uninducible": pl.Int64,
+            "inactive_confidence_tier": pl.Utf8,
+        }
     )
 
-    # filter to bacterial rows
-    bac_df = (
-        pl.read_csv(sylph_tax, separator='\t', skip_rows=1, null_values=['NA'], new_columns=['clade_name', 'taxonomic_abundance', 'sequence_abundance', 'ani', 'coverage', 'virus_host'])
-            .filter(pl.col('clade_name').str.starts_with('d__Bacteria'))
+
+def _col(df, name, dtype=None, alias=None):
+    out_name = alias or name
+    if name not in df.columns:
+        expr = pl.lit(None)
+        if dtype is not None:
+            expr = expr.cast(dtype)
+        return expr.alias(out_name)
+    expr = pl.col(name)
+    if dtype is not None:
+        expr = expr.cast(dtype, strict=False)
+    return expr.alias(out_name)
+
+
+def with_bio_group_flags(df):
+    cols = df.columns
+    prep = []
+    for name in ("pharokka_category", "phold_category", "empathi_annot", "pharokka_annot"):
+        if name in cols:
+            prep.append(pl.col(name).fill_null(""))
+        else:
+            prep.append(pl.lit("").alias(name))
+    out = df.with_columns(prep).with_columns(
+        [
+            pl.col("empathi_annot")
+            .str.split("|")
+            .list.get(0, null_on_oob=True)
+            .fill_null("")
+            .alias("empathi_token0"),
+            pl.col("empathi_annot")
+            .str.split("|")
+            .list.get(1, null_on_oob=True)
+            .fill_null("")
+            .alias("empathi_token1"),
+        ]
+    )
+    return out.with_columns(
+        [
+            (
+                (pl.col("pharokka_category") == "head and packaging")
+                | pl.col("phold_category").str.contains("(?i)head|capsid|portal|terminase")
+                | (pl.col("empathi_token0") == "pvp")
+                | (pl.col("empathi_token0") == "packaging_assembly")
+                | pl.col("empathi_token1").is_in(
+                    ["capsid", "terminase", "portal", "head-tail_joining"]
+                )
+            ).alias("is_capsid_packaging"),
+            (
+                (pl.col("pharokka_category") == "DNA, RNA and nucleotide metabolism")
+                | (pl.col("empathi_token0") == "DNA-associated")
+                | (pl.col("empathi_token0") == "RNA-associated")
+                | pl.col("empathi_token1").is_in(
+                    ["nuclease", "annealing", "DNA_polymerase", "helicase"]
+                )
+            ).alias("is_dna_metabolism"),
+            (
+                (pl.col("pharokka_category") == "tail")
+                | pl.col("phold_category").str.contains(r"(?i)\btail\b")
+                | (pl.col("empathi_token1") == "tail")
+            ).alias("is_tail"),
+            (
+                (pl.col("pharokka_category") == "lysis")
+                | pl.col("phold_category").str.contains("(?i)lysis|holin|endolysin")
+                | (pl.col("empathi_token0") == "lysis")
+                | (pl.col("empathi_token0") == "cell_wall_depolymerase")
+                | pl.col("empathi_token1").is_in(["lysis", "holin"])
+            ).alias("is_lysis"),
+            (
+                (pl.col("pharokka_category") == "connector")
+                | pl.col("phold_category").str.contains("(?i)connector|head-tail|head–tail")
+            ).alias("is_connector"),
+            (
+                (pl.col("pharokka_category") == "transcription regulation")
+                | (pl.col("empathi_token0") == "transcriptional_regulator")
+                | (pl.col("empathi_token1") == "transcriptional_regulator")
+            ).alias("is_transcription"),
+            (
+                (pl.col("pharokka_category") == "integration and excision")
+                | pl.col("phold_category").str.contains("(?i)integrase|integration")
+                | (pl.col("empathi_token1") == "integration")
+            ).alias("is_integration"),
+            (
+                (
+                    pl.col("pharokka_category")
+                    == "moron, auxiliary metabolic gene and host takeover"
+                )
+                | pl.col("phold_category").str.contains(
+                    r"(?i)auxiliary metabolic|host takeover|moron|anti[- ]?defen[cs]e"
+                )
+                | pl.col("empathi_token0").is_in(
+                    ["amg", "auxiliary_metabolic", "host_takeover", "moron", "anti-defense"]
+                )
+                | pl.col("empathi_token1").is_in(
+                    ["amg", "auxiliary_metabolic", "host_takeover", "moron", "anti-defense"]
+                )
+            ).alias("is_amg_host_takeover"),
+        ]
     )
 
-    # join at phage:host at level
-    species_match = (
-        virus_df
-            .join(bac_df, left_on='virus_host', right_on='clade_name', how='inner')
-            .with_columns([
-                (pl.col('taxonomic_abundance') / pl.col('taxonomic_abundance_right')).alias('phage_host_ratio'),
-                pl.col('clade_name').str.split('t__').list[1].alias('votu_rep'),
-            ])
-    )
-    phage_host_ratio_lst.append(species_match)
 
-    # join phage:host at genus level for viruses that did not match at species level
-    genus_match = (
-        virus_df
-            .with_columns([pl.col('virus_host').str.split('|s__').list[0]])
-            .filter(~pl.col('species_cluster_id').is_in(set(species_match['species_cluster_id'])))
-            .join(bac_df, left_on='virus_host', right_on='clade_name', how='inner')
-            .with_columns([
-                (pl.col('taxonomic_abundance') / pl.col('taxonomic_abundance_right')).alias('phage_host_ratio'),
-                pl.col('clade_name').str.split('t__').list[1].alias('votu_rep'),
-            ])
-    )
-    phage_host_ratio_lst.append(genus_match)
-
-    # combine all phage:host ratios
-    phage_host_ratio_df = pl.concat(phage_host_ratio_lst)[['species_cluster_id', 'phage_host_ratio', 'virus_host']]
-
-    return phage_host_ratio_df
-
-
-def create_activity_input(coverm_df, genome_to_species_df, uhvdb_metadata_df, phage_host_ratio_df, sylph_tax_df):
-    # aggregate to species level
-    cf_metag_data_species = (
-        coverm_df
-            # filter to breadth ratio >= 0.6
-            .filter(pl.col('breadth_ratio') >= 0.6)
-            # join with genome to species mapping
-            .join(genome_to_species_df, left_on='contig_id', right_on='uhvdb_id', how='left')
-            # join with uhvdb metadata
-            .join(uhvdb_metadata_df, on='species_cluster_id', how='left')
-            # filter metadata to one sequence per hash
-            .filter(pl.col('seq_name') == pl.col('seqhash_rep'))
-            # filter metadata to sequences that are in the coverm contigs
-            .filter(pl.col('contig_id') == pl.col('genomovar_rep'))
-            # group by species cluster id, sample id, and group
-            .group_by(['species_cluster_id', 'sample_id', 'group'])
-            .agg([
-                # count species members by checkv quality
-                (pl.col('checkv_quality') == 'Complete').sum().alias('complete_count'),
-                (pl.col('checkv_quality') == 'High-quality').sum().alias('high_quality_count'),
-                # median number of geNomad virus hallmarks
-                (pl.col('n_hallmarks')).median().alias('med_n_hallmarks'),
-                # median ANI * AF for CheckV 
-                ((pl.col('aai_id')/100) * pl.col('aai_af')).median().alias('med_aai_id_af'),
-                # median viral and host genes CheckV
-                (pl.col('viral_genes')).median().alias('med_viral_genes'),
-                (pl.col('host_genes')).median().alias('med_host_genes'),
-                # median BACPHLIP virulent score
-                (pl.col('virulent').median()).alias('med_virulent_score'),
-                # median number of integration related genes
-                ((pl.col('phrog_integration_excision')).median() + (pl.col('empathi_integration')).median()).alias('med_integration_related'),
-                # median number of genes per genome
-                (pl.col('num_capsid').median()).alias('med_num_capsid'),
-                (pl.col('num_tail').median()).alias('med_num_tail'),
-                (pl.col('num_lysis').median()).alias('med_num_lysis'),
-                (pl.col('mcp_hallmark').median()).alias('med_mcp_hallmark'),
-                (pl.col('terl_hallmark').median()).alias('med_terL_hallmark'),
-                (pl.col('portal_hallmark').median()).alias('med_portal_hallmark'),
-                # read alignment metrics
-                (pl.col('breadth').median()).alias('breadth'),
-                (pl.col('breadth_ratio').median()).alias('breadth_ratio'),
-                (pl.col('variance').median()).alias('variance'),
-                (pl.col('trimmed_mean').median()).alias('trimmed_mean'),
-            ])
-            .with_columns([
-                (pl.col('variance')/pl.col('trimmed_mean')).alias('variance_ratio'),
-            ])
-            .join(phage_host_ratio_df, on=['species_cluster_id'], how='left')
-            .join(sylph_tax_df.select(['species_cluster_id', 'ani']), on=['species_cluster_id'], how='left')
-            .unique(['species_cluster_id', 'sample_id'])
-            .fill_null(0.00)
+def load_coverm(path, sample_id, group):
+    raw = _read_csv(path, separator="\t")
+    if raw is None:
+        return None
+    cols = raw.columns
+    if len(cols) < 6:
+        return None
+    return (
+        raw.rename(
+            {
+                cols[0]: "contig_id",
+                cols[1]: "trimmed_mean",
+                cols[2]: "mean",
+                cols[3]: "variance",
+                cols[4]: "covered_bases",
+                cols[5]: "length",
+            }
+        )
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                pl.lit(group).alias("group"),
+                (pl.col("covered_bases") / pl.col("length")).alias("breadth"),
+                (1 - math.e ** (-0.833 * pl.col("mean"))).alias("expected_breadth"),
+            ]
+        )
+        .with_columns(
+            pl.when(pl.col("expected_breadth") > 1e-6)
+            .then(pl.col("breadth") / pl.col("expected_breadth"))
+            .otherwise(None)
+            .alias("breadth_ratio")
+        )
+        .with_columns(
+            pl.when(pl.col("trimmed_mean") > 0)
+            .then(pl.col("variance") / pl.col("trimmed_mean"))
+            .otherwise(None)
+            .alias("variance_ratio")
+        )
     )
 
-    return cf_metag_data_species
 
-
-def calculate_activity(activity_input_df, model_path, metadata_path):
-
-    # =============================================================================
-    # 1. LOAD MODEL AND METADATA
-    # =============================================================================
-    pipeline = joblib.load(model_path)
-    metadata = joblib.load(metadata_path)
-
-    # Extract info from metadata
-    required_features = metadata["numeric_cols"]
-    t90 = metadata["thresh_90"]
-    t75 = metadata["thresh_75"]
-    t50 = metadata["thresh_50"]
-
-    # =============================================================================
-    # 2. LOAD AND PREPROCESS NEW DATA
-    # =============================================================================
-    processed_results = activity_input_df
-
-    # =============================================================================
-    # 3. GENERATE PREDICTIONS
-    # =============================================================================
-    # Scikit-learn expects the exact columns in the exact order as training
-    X_new = processed_results.select(required_features).to_pandas()
-    X_new = X_new.replace([np.inf, -np.inf], np.nan)
-
-    # Get probability of "Active" (Class 1)
-    probs = pipeline.predict_proba(X_new)[:, 1]
-
-    # =============================================================================
-    # 4. CATEGORIZE BY CONFIDENCE TIERS
-    # =============================================================================
-    final_df = (
-        processed_results
-            .with_columns([
-                pl.Series("activity_probability", probs)
-            ])
-            .with_columns([
-                pl.when(pl.col("activity_probability") >= t90).then(pl.lit("High"))
-                    .when(pl.col("activity_probability") >= t75).then(pl.lit("Medium"))
-                    .when(pl.col("activity_probability") >= t50).then(pl.lit("Low"))
-                    .otherwise(pl.lit("No Prediction"))
-                    .alias("confidence_tier")
-            ])
+def load_sylph_tax(path, sample_id):
+    raw = _read_csv(
+        path,
+        separator="\t",
+        skip_rows=1,
+        new_columns=[
+            "clade_name",
+            "taxonomic_abundance",
+            "sequence_abundance",
+            "ani",
+            "coverage",
+            "virus_host",
+        ],
+    )
+    if raw is None or "clade_name" not in raw.columns:
+        return pl.DataFrame(
+            schema={"sample_id": pl.Utf8, "species_cluster_id": pl.Int64, "ani": pl.Float64}
+        )
+    return (
+        raw.filter(pl.col("clade_name").str.starts_with("Viruses"))
+        .filter(pl.col("clade_name").str.contains("t__"))
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                pl.col("clade_name")
+                .str.replace(r".*vSPECIES-", "")
+                .str.replace(r"\|.*", "")
+                .cast(pl.Int64, strict=False)
+                .alias("species_cluster_id"),
+                pl.col("ani").cast(pl.Float64, strict=False),
+            ]
+        )
+        .filter(pl.col("species_cluster_id").is_not_null())
+        .unique(["sample_id", "species_cluster_id"])
+        .select(["sample_id", "species_cluster_id", "ani"])
     )
 
-    return final_df
+
+def load_profile(path, sample_id, id_map):
+    raw = _read_csv(path, separator="\t")
+    if raw is None or "Contig_name" not in raw.columns:
+        return pl.DataFrame(
+            schema={
+                "sample_id": pl.Utf8,
+                "species_cluster_id": pl.Int64,
+                "log_True_cov": pl.Float64,
+                "log_tax_abund": pl.Float64,
+                "log_seq_abund": pl.Float64,
+                "Naive_ANI": pl.Float64,
+                "containment_frac": pl.Float64,
+                "kmers_reassigned": pl.Float64,
+                "cov_evenness": pl.Float64,
+                "True_cov_rank": pl.Float64,
+            }
+        )
+    df = (
+        raw.filter(pl.col("Contig_name").str.starts_with("UHVDB-"))
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                pl.col("Contig_name").alias("uhvdb_id"),
+                _col(raw, "True_cov", pl.Float64),
+                _col(raw, "Taxonomic_abundance", pl.Float64, "tax_abund"),
+                _col(raw, "Sequence_abundance", pl.Float64, "seq_abund"),
+                _col(raw, "Naive_ANI", pl.Float64),
+                _col(raw, "Median_cov", pl.Float64),
+                _col(raw, "Mean_cov_geq1", pl.Float64),
+                _col(raw, "kmers_reassigned", pl.Float64),
+                _col(raw, "Containment_ind", pl.Utf8),
+            ]
+        )
+        .join(id_map, on="uhvdb_id", how="inner")
+        .sort(["sample_id", "species_cluster_id", "tax_abund"], descending=[False, False, True])
+        .unique(["sample_id", "species_cluster_id"], keep="first")
+        .with_columns(
+            [
+                pl.col("Containment_ind")
+                .map_elements(_parse_containment_frac, return_dtype=pl.Float64)
+                .alias("containment_frac"),
+                (pl.col("Median_cov") / pl.col("Mean_cov_geq1")).alias("cov_evenness"),
+                pl.col("True_cov").log1p().alias("log_True_cov"),
+                pl.col("tax_abund").fill_null(0).log1p().alias("log_tax_abund"),
+                pl.col("seq_abund").fill_null(0).log1p().alias("log_seq_abund"),
+            ]
+        )
+    )
+    return (
+        df.with_columns(
+            [
+                pl.col("True_cov").rank(method="average").over("sample_id").alias("_tc_rank"),
+                pl.len().over("sample_id").alias("_n_in_sample"),
+            ]
+        )
+        .with_columns((pl.col("_tc_rank") / pl.col("_n_in_sample")).alias("True_cov_rank"))
+        .select(
+            [
+                "sample_id",
+                "species_cluster_id",
+                "log_True_cov",
+                "log_tax_abund",
+                "log_seq_abund",
+                "Naive_ANI",
+                "containment_frac",
+                "kmers_reassigned",
+                "cov_evenness",
+                "True_cov_rank",
+            ]
+        )
+    )
+
+
+def gene_prop_agg(gene_raw):
+    passing = gene_raw.filter(pl.col("breadth") > GENE_BREADTH_THRESHOLD)
+    if passing.height == 0:
+        return pl.DataFrame(
+            schema={
+                "sample_id": pl.Utf8,
+                "genomovar_rep": pl.Utf8,
+                "med_prop_capsid_packaging": pl.Float64,
+                "med_prop_dna_metabolism": pl.Float64,
+                "med_prop_tail": pl.Float64,
+                "med_prop_lysis": pl.Float64,
+                "med_prop_connector": pl.Float64,
+                "med_prop_transcription": pl.Float64,
+                "med_prop_integration": pl.Float64,
+                "med_prop_amg_host_takeover": pl.Float64,
+                "med_mcp_hallmark": pl.UInt32,
+                "med_portal_hallmark": pl.UInt32,
+                "med_terL_hallmark": pl.UInt32,
+                "med_n_hallmarks": pl.UInt32,
+            }
+        )
+    return (
+        with_bio_group_flags(passing)
+        .group_by(["sample_id", "genomovar_rep"])
+        .agg(
+            [
+                pl.col("is_capsid_packaging").mean().alias("med_prop_capsid_packaging"),
+                pl.col("is_dna_metabolism").mean().alias("med_prop_dna_metabolism"),
+                pl.col("is_tail").mean().alias("med_prop_tail"),
+                pl.col("is_lysis").mean().alias("med_prop_lysis"),
+                pl.col("is_connector").mean().alias("med_prop_connector"),
+                pl.col("is_transcription").mean().alias("med_prop_transcription"),
+                pl.col("is_integration").mean().alias("med_prop_integration"),
+                pl.col("is_amg_host_takeover").mean().alias("med_prop_amg_host_takeover"),
+                (
+                    ((pl.col("pharokka_annot") == "major head protein").sum() >= 1)
+                    | ((pl.col("phold_category") == "major head protein").sum() >= 1)
+                    | ((pl.col("empathi_annot") == "pvp|capsid|major_capsid").sum() >= 1)
+                )
+                .cast(pl.UInt32)
+                .alias("med_mcp_hallmark"),
+                (
+                    ((pl.col("pharokka_annot") == "terminase large subunit").sum() >= 1)
+                    | ((pl.col("phold_category") == "terminase large subunit").sum() >= 1)
+                    | (
+                        (
+                            pl.col("empathi_annot")
+                            == "DNA-associated|terminase|packaging_assembly"
+                        ).sum()
+                        >= 1
+                    )
+                )
+                .cast(pl.UInt32)
+                .alias("med_terL_hallmark"),
+                (
+                    ((pl.col("pharokka_annot") == "portal protein").sum() >= 1)
+                    | ((pl.col("phold_category") == "portal protein").sum() >= 1)
+                    | ((pl.col("empathi_annot") == "pvp|portal").sum() >= 1)
+                )
+                .cast(pl.UInt32)
+                .alias("med_portal_hallmark"),
+            ]
+        )
+        .with_columns(
+            (pl.col("med_mcp_hallmark") + pl.col("med_terL_hallmark") + pl.col("med_portal_hallmark")).alias(
+                "med_n_hallmarks"
+            )
+        )
+    )
+
+
+def gene_stats_agg(gene_raw, id_map, n_genes):
+    if gene_raw.height == 0:
+        return pl.DataFrame(
+            schema={
+                "sample_id": pl.Utf8,
+                "species_cluster_id": pl.Int64,
+                "gene_breadth_std": pl.Float64,
+                "gene_breadth_cv": pl.Float64,
+                "gene_occupancy": pl.Float64,
+                "n_struct_genes": pl.Float64,
+            }
+        )
+    struct = (
+        (pl.col("pharokka_annot") == "major head protein")
+        | (pl.col("phold_category") == "major head protein")
+        | (pl.col("empathi_annot") == "pvp|capsid|major_capsid")
+        | (pl.col("pharokka_annot") == "terminase large subunit")
+        | (pl.col("phold_category") == "terminase large subunit")
+        | (pl.col("empathi_annot") == "DNA-associated|terminase|packaging_assembly")
+        | (pl.col("pharokka_annot") == "portal protein")
+        | (pl.col("phold_category") == "portal protein")
+        | (pl.col("empathi_annot") == "pvp|portal")
+    )
+    flagged = with_bio_group_flags(gene_raw)
+    return (
+        flagged.with_columns(struct.alias("is_struct"))
+        .group_by(["sample_id", "genomovar_rep"])
+        .agg(
+            [
+                pl.col("breadth").mean().alias("gene_breadth_mean"),
+                pl.col("breadth").std().alias("gene_breadth_std"),
+                pl.col("is_struct").sum().cast(pl.Float64).alias("n_struct_genes"),
+                (pl.col("breadth") > GENE_BREADTH_THRESHOLD)
+                .sum()
+                .cast(pl.Float64)
+                .alias("n_genes_covered"),
+            ]
+        )
+        .with_columns(
+            (pl.col("gene_breadth_std") / pl.col("gene_breadth_mean")).alias("gene_breadth_cv")
+        )
+        .join(id_map.rename({"uhvdb_id": "genomovar_rep"}), on="genomovar_rep", how="inner")
+        .sort(
+            ["sample_id", "species_cluster_id", "n_genes_covered"],
+            descending=[False, False, True],
+        )
+        .unique(["sample_id", "species_cluster_id"], keep="first")
+        .join(n_genes, on="species_cluster_id", how="left")
+        .with_columns((pl.col("n_genes_covered") / pl.col("n_genes")).alias("gene_occupancy"))
+        .select(
+            [
+                "sample_id",
+                "species_cluster_id",
+                "gene_breadth_std",
+                "gene_breadth_cv",
+                "gene_occupancy",
+                "n_struct_genes",
+            ]
+        )
+    )
+
+
+def species_rep_metadata(uhvdb):
+    df = uhvdb.filter(pl.col("seq_name") == pl.col("seqhash_rep")).unique(
+        "species_cluster_id", keep="first"
+    )
+    return df.with_columns(
+        [
+            _col(df, "species_cluster_id", pl.Int64),
+            _col(df, "uhvdb_id", pl.Utf8),
+            _col(df, "ictv_class", pl.Utf8),
+            _col(df, "virulent", pl.Float64, "med_virulent_score"),
+            _col(df, "temperate", pl.Float64),
+            _col(df, "phrog_integrases", pl.Float64),
+            _col(df, "phrog_integration_excision", pl.Float64),
+            _col(df, "empathi_integration", pl.Float64),
+            (pl.col("integration_status") == "integrated").cast(pl.Float64).alias("is_integrated")
+            if "integration_status" in df.columns
+            else pl.lit(None).cast(pl.Float64).alias("is_integrated"),
+            _col(df, "num_lysis", pl.Float64),
+            _col(df, "num_tail", pl.Float64),
+            _col(df, "num_capsid", pl.Float64),
+            _col(df, "num_proteins", pl.Float64),
+            _col(df, "mcp_hallmark", pl.Float64, "annot_mcp_hallmark"),
+            _col(df, "terl_hallmark", pl.Float64, "annot_terl_hallmark"),
+            _col(df, "portal_hallmark", pl.Float64, "annot_portal_hallmark"),
+            _col(df, "n_hallmarks", pl.Float64, "annot_n_hallmarks"),
+            _col(df, "virus_hallmarks", pl.Float64),
+            _col(df, "aai_id", pl.Float64, "annot_aai_id"),
+            _col(df, "aai_af", pl.Float64, "annot_aai_af"),
+            _col(df, "aai_completeness", pl.Float64),
+            (
+                pl.when(pl.col("aai_confidence") == "low")
+                .then(0.0)
+                .when(pl.col("aai_confidence") == "medium")
+                .then(1.0)
+                .when(pl.col("aai_confidence") == "high")
+                .then(2.0)
+                .otherwise(1.0)
+                .alias("aai_confidence_ord")
+                if "aai_confidence" in df.columns
+                else pl.lit(1.0).alias("aai_confidence_ord")
+            ),
+            _col(df, "Score", pl.Float64),
+            _col(df, "completeness", pl.Float64),
+            _col(df, "host_genes", pl.Float64),
+            _col(df, "viral_genes", pl.Float64),
+            _col(df, "contig_length", pl.Float64),
+            _col(df, "n_genes", pl.Float64),
+            (
+                pl.col("topology").is_in(["DTR", "ITR"]).cast(pl.Float64).alias("has_terminal_repeats")
+                if "topology" in df.columns
+                else pl.lit(None).cast(pl.Float64).alias("has_terminal_repeats")
+            ),
+            (
+                (pl.col("topology") == "DTR").cast(pl.Float64).alias("is_DTR")
+                if "topology" in df.columns
+                else pl.lit(None).cast(pl.Float64).alias("is_DTR")
+            ),
+            (
+                pl.col("completeness_method")
+                .cast(pl.Utf8)
+                .str.contains("DTR")
+                .cast(pl.Float64)
+                .alias("cm_dtr")
+                if "completeness_method" in df.columns
+                else pl.lit(None).cast(pl.Float64).alias("cm_dtr")
+            ),
+            (
+                (pl.col("checkv_quality") == "Complete").cast(pl.Int64).alias("complete_count")
+                if "checkv_quality" in df.columns
+                else pl.lit(None).cast(pl.Int64).alias("complete_count")
+            ),
+        ]
+    ).with_columns(
+        [
+            ((pl.col("annot_aai_id") / 100) * pl.col("annot_aai_af")).alias("med_aai_id_af"),
+            (pl.col("num_lysis") / (pl.col("contig_length") / 1000)).alias("num_lysis_per_kb"),
+            (pl.col("num_tail") / (pl.col("contig_length") / 1000)).alias("num_tail_per_kb"),
+            (pl.col("num_capsid") / (pl.col("contig_length") / 1000)).alias("num_capsid_per_kb"),
+            (pl.col("num_proteins") / (pl.col("contig_length") / 1000)).alias(
+                "num_proteins_per_kb"
+            ),
+            (pl.col("phrog_integrases") / (pl.col("contig_length") / 1000)).alias(
+                "phrog_integrases_per_kb"
+            ),
+            (pl.col("phrog_integration_excision") / (pl.col("contig_length") / 1000)).alias(
+                "phrog_integration_excision_per_kb"
+            ),
+            (pl.col("empathi_integration") / (pl.col("contig_length") / 1000)).alias(
+                "empathi_integration_per_kb"
+            ),
+            (pl.col("annot_n_hallmarks") / (pl.col("contig_length") / 1000)).alias(
+                "annot_n_hallmarks_per_kb"
+            ),
+            (pl.col("virus_hallmarks") / (pl.col("contig_length") / 1000)).alias(
+                "virus_hallmarks_per_kb"
+            ),
+            pl.col("contig_length").log1p().alias("log_contig_length"),
+            pl.col("n_genes").log1p().alias("log_n_genes"),
+        ]
+    )
+
+
+def confidence_tier(prob, t90, t75, t50):
+    if prob is None or (isinstance(prob, float) and np.isnan(prob)):
+        return "No prediction"
+    if prob >= t90:
+        return "High"
+    if prob >= t75:
+        return "Medium"
+    if prob >= t50:
+        return "Low"
+    return "No prediction"
 
 
 def main(args=None):
     args = parse_args(args)
 
-    # load inputs
-    uhvdb_metadata_df = pl.read_csv(args.uhvdb_metadata, separator='\t')
-    genome_to_species_df = uhvdb_metadata_df.select(['uhvdb_id', 'species_cluster_id']).unique()
-    coverm_df = (
-        pl.read_csv(args.coverm, separator='\t', new_columns=['contig_id', 'trimmed_mean', 'mean', 'variance', 'covered_bases', 'length'])
-            .with_columns([
-                    (pl.col('covered_bases')/pl.col('length')).alias('breadth'),
-                    pl.lit(args.sample_id).alias('sample_id'),
-                    pl.lit(args.group).alias('group'),
-                ])
-                .with_columns([
-                    (1 - math.e**(-0.833 * pl.col('mean'))).alias('expected_breadth'),
-                ])
-                .with_columns([
-                    (pl.col('breadth')/pl.col('expected_breadth')).alias('breadth_ratio'),
-                ])
+    model_meta = joblib.load(args.metadata_path)
+    pipeline = joblib.load(args.model_path)
+    required_features = list(model_meta["numeric_cols"])
+    t90 = float(model_meta["thresh_90"])
+    t75 = float(model_meta["thresh_75"])
+    t50 = float(model_meta["thresh_50"])
+    ictv_class_filter = model_meta.get("ictv_class_filter", "Caudoviricetes")
+
+    uhvdb = _read_csv(args.uhvdb_metadata, separator="\t")
+    coverm = load_coverm(args.coverm, args.sample_id, args.group)
+    if uhvdb is None or coverm is None:
+        write_tsv(_empty_output(), args.output)
+        return 0
+
+    drop_cols = [c for c in META_HALLMARK_COLLISION_COLS if c in uhvdb.columns]
+    uhvdb_for_join = uhvdb.drop(drop_cols) if drop_cols else uhvdb
+    id_map = (
+        uhvdb.select(["uhvdb_id", "species_cluster_id"])
+        .unique("uhvdb_id")
+        .with_columns(pl.col("species_cluster_id").cast(pl.Int64, strict=False))
     )
-    sylph_tax_df = (
-        pl.read_csv(args.sylph_tax, separator='\t', skip_rows=1, null_values=['NA'], new_columns=['clade_name', 'taxonomic_abundance', 'sequence_abundance', 'ani', 'coverage', 'virus_host'])
-            .filter(pl.col('clade_name').str.starts_with('Viruses'))
-            .filter(pl.col('clade_name').str.contains('t__'))
-            .with_columns([
-                pl.col('clade_name').str.replace(r'.*vSPECIES-', '').str.replace(r'\|.*', '').cast(pl.Int64).alias('species_cluster_id'),
-            ])
+    meta_sp = species_rep_metadata(uhvdb)
+
+    detections = (
+        coverm.join(uhvdb_for_join, left_on="contig_id", right_on="uhvdb_id", how="left")
+        .filter(pl.col("seq_name") == pl.col("seqhash_rep"))
+        .with_columns(
+            [
+                pl.col("species_cluster_id").cast(pl.Int64, strict=False),
+                pl.col("contig_id").alias("uhvdb_id"),
+            ]
+        )
+        .unique(["species_cluster_id", "sample_id"], keep="first")
+    )
+    n_before = detections.height
+    detections = detections.filter(pl.col("ictv_class") == ictv_class_filter)
+    if detections.height == 0:
+        print(
+            f"No {ictv_class_filter} detections ({n_before} species-rep rows before ICTV filter)",
+            file=sys.stderr,
+        )
+        write_tsv(_empty_output(), args.output)
+        return 0
+
+    gene_raw = _read_csv(args.gene_coverage, separator="\t")
+    if gene_raw is None:
+        gene_raw = pl.DataFrame(
+            schema={
+                "genomovar_rep": pl.Utf8,
+                "breadth": pl.Float64,
+                "mean_depth": pl.Float64,
+                "pharokka_category": pl.Utf8,
+                "pharokka_annot": pl.Utf8,
+                "phold_category": pl.Utf8,
+                "empathi_annot": pl.Utf8,
+            }
+        )
+    else:
+        gene_raw = (
+            gene_raw.filter(pl.col("genomovar_rep").str.starts_with("UHVDB-"))
+            .with_columns(pl.lit(args.sample_id).alias("sample_id"))
+        )
+
+    gene_prop = (
+        gene_prop_agg(gene_raw)
+        .join(id_map.rename({"uhvdb_id": "genomovar_rep"}), on="genomovar_rep", how="inner")
+        .unique(["sample_id", "species_cluster_id"], keep="first")
+    )
+    gene_stats = gene_stats_agg(
+        gene_raw, id_map, meta_sp.select(["species_cluster_id", "n_genes"])
+    )
+    prof = load_profile(args.profile, args.sample_id, id_map)
+    sylph_ani = load_sylph_tax(args.sylph_tax, args.sample_id)
+
+    features = (
+        detections.select(
+            [
+                "sample_id",
+                "group",
+                "species_cluster_id",
+                "uhvdb_id",
+                "ictv_class",
+                "breadth_ratio",
+                "variance_ratio",
+            ]
+        )
+        .join(
+            meta_sp.drop(["uhvdb_id", "ictv_class"], strict=False),
+            on="species_cluster_id",
+            how="left",
+        )
+        .join(
+            gene_prop.select(
+                [
+                    "sample_id",
+                    "species_cluster_id",
+                    "med_prop_capsid_packaging",
+                    "med_prop_dna_metabolism",
+                    "med_prop_tail",
+                    "med_prop_lysis",
+                    "med_prop_connector",
+                    "med_prop_transcription",
+                    "med_prop_integration",
+                    "med_prop_amg_host_takeover",
+                    "med_mcp_hallmark",
+                    "med_portal_hallmark",
+                    "med_terL_hallmark",
+                    "med_n_hallmarks",
+                ]
+            ),
+            on=["sample_id", "species_cluster_id"],
+            how="left",
+        )
+        .join(prof, on=["sample_id", "species_cluster_id"], how="left")
+        .join(gene_stats, on=["sample_id", "species_cluster_id"], how="left")
+        .join(sylph_ani, on=["sample_id", "species_cluster_id"], how="left")
     )
 
-    # calculate phage:host ratio
-    phage_host_ratio_df = calculate_phage_to_host(args.sylph_tax, args.sample_id)
+    for col in required_features:
+        if col not in features.columns:
+            features = features.with_columns(pl.lit(None).cast(pl.Float64).alias(col))
 
-    # create activity input
-    activity_input_df = create_activity_input(coverm_df, genome_to_species_df, uhvdb_metadata_df, phage_host_ratio_df, sylph_tax_df)
+    x_new = features.select(required_features).to_pandas()
+    x_new = x_new.replace([np.inf, -np.inf], np.nan)
+    probs = pipeline.predict_proba(x_new)[:, 1]
+    pred = (probs >= t90).astype(int)
+    tiers = [confidence_tier(p, t90, t75, t50) for p in probs]
 
-    # calculate activity
-    activity_df = calculate_activity(activity_input_df, args.model_path, args.metadata_path)
+    scored = features.with_columns(
+        [
+            pl.Series("predicted_inactive_probability", probs),
+            pl.Series("predicted_uninducible", pred),
+            pl.Series("inactive_confidence_tier", tiers),
+        ]
+    ).select(OUTPUT_COLS)
 
-    # combine activity with all other metadata
-    activity_w_metadata_df = (
-        coverm_df
-            .filter(pl.col('breadth_ratio') >= 0.6)
-            .join(genome_to_species_df, left_on='contig_id', right_on='uhvdb_id', how='left')
-            .join(uhvdb_metadata_df, on='species_cluster_id', how='left')
-            .filter(pl.col('seq_name') == pl.col('seqhash_rep'))
-            .filter(pl.col('contig_id') == pl.col('genomovar_rep'))
-            .with_columns([
-                pl.col('ictv_class').fill_null('Unclassified'),
-                pl.col('ictv_family').fill_null('Unclassified'),
-                pl.col('host_lineage').fill_null('Unclassified'),
-            ])
-            .group_by(['species_cluster_id', 'sample_id', 'group'])
-            .agg([
-                # identify most common ictv class
-                pl.col('ictv_class').mode().alias('most_common_ictv_class'),
-                pl.col('ictv_family').mode().alias('most_common_ictv_family'),
-                # identify most common uhvdb clusters
-                pl.col('family_cluster_id').mode().alias('most_common_family_cluster_id'),
-                pl.col('genus_cluster_id').mode().alias('most_common_genus_cluster_id'),
-                # get the most common host taxonomy
-                pl.col('host_lineage').mode().alias('most_common_host_taxonomy'),
-                # get lifestyle information for detected viruses
-                (pl.col('temperate').median()).alias('med_temperate_score'),
-                pl.len().alias('num_genomovars_in_species'),
-                ((pl.col('phrog_integration_excision') > 0) | (pl.col('empathi_integration') > 0)).sum().alias('count_integration_related'),
-                ((pl.col('integration_status') == 'integrated').sum()).alias('count_integrated'),
-                ((pl.col('checkv_quality') == 'Complete').sum()).alias('count_complete'),
-                # get functional information
-                pl.col('num_proteins').median().alias('med_protein_count'),
-                (pl.col('num_uniprot_ips').median() / pl.col('num_proteins').median()).alias('mean_proportion_uniprot_ips'),
-                (pl.col('num_capsid').median()).alias('med_num_capsid'),
-                (pl.col('num_tail').median()).alias('med_num_tail'),
-                (pl.col('num_lysis').median()).alias('med_num_lysis'),
-                (pl.col('mcp_hallmark').median()).alias('med_mcp_hallmark'),
-                (pl.col('terl_hallmark').median()).alias('med_terL_hallmark'),
-                (pl.col('portal_hallmark').median()).alias('med_portal_hallmark'),
-                ((pl.col('num_card') > 0 ).sum()).alias('count_card'),
-                ((pl.col('num_vfdb') > 0 ).sum()).alias('count_vfdb'),
-                # get genome information
-                (pl.col('length').median()).alias('genome_length'),
-                (pl.col('breadth').median()).alias('breadth'),
-                (pl.col('breadth_ratio').median()).alias('breadth_ratio'),
-                (pl.col('variance').median()).alias('variance'),
-                (pl.col('trimmed_mean').median()).alias('trimmed_mean'),
-            ])
-            .with_columns([
-                (pl.col('variance')/pl.col('trimmed_mean')).alias('variance_ratio'),
-            ])
-            .with_columns([
-                pl.col('most_common_ictv_class').list[0],
-                pl.col('most_common_ictv_family').list[0],
-                pl.col('most_common_family_cluster_id').list[0],
-                pl.col('most_common_genus_cluster_id').list[0],
-                pl.col('most_common_host_taxonomy').list[0],
-            ])
-            .join(phage_host_ratio_df, on=['species_cluster_id'], how='left')
-            .join(sylph_tax_df.select(['species_cluster_id', 'taxonomic_abundance', 'ani']), on=['species_cluster_id'], how='left')
-            .join(activity_df[['species_cluster_id', 'activity_probability', 'confidence_tier', ]].with_columns([pl.col('species_cluster_id').cast(pl.Int64)]), on=['species_cluster_id'], how='left')
+    print(
+        f"Scored {scored.height} {ictv_class_filter} detections "
+        f"(p>=thresh_90: {int(pred.sum())})",
+        file=sys.stderr,
     )
-
-    # write activity to tsv
-    activity_w_metadata_df.write_csv(args.output, separator='\t')
+    write_tsv(scored, args.output)
+    return 0
 
 
 if __name__ == "__main__":

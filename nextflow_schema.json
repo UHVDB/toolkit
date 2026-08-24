@@ -58,24 +58,10 @@
             "properties": {
                 "uhvdb_version": {
                     "type": "string",
-                    "default": "5.1",
-                    "description": "UHVDB release to download and cache. Use 'test' to fetch the lightweight Zenodo/S3 test dataset.",
-                    "help_text": "Production runs should keep the default release. Setting this to 'test' downloads the small uhvdb-test-dataset from Kopah S3, with a Zenodo files-archive fallback, and stores it under dbdir/uhvdb/test.",
+                    "default": "v6",
+                    "description": "UHVDB release to download and cache. Use 'test' to fetch the lightweight S3 test dataset.",
+                    "help_text": "Production runs should keep the default release. Files are fetched from Kopah S3 under uhvdb/<version>/analyze and uhvdb/<version>/update, including the CheckV database, geNomad hallmark HMM/metadata, and CRISPR spacer FASTA/TSV in the update prefix. Setting this to 'test' downloads the small files from s3://uhvdb/test/, stores them under dbdir/uhvdb/test, skips InterProScan download and annotation, and limits PHISTHOST to small UHBDB AGC archives.",
                     "fa_icon": "fas fa-code-branch"
-                },
-                "checkv_s3": {
-                    "type": "string",
-                    "default": "https://s3.kopah.uw.edu/uhvdb-checkv/v5.1/checkv_db.tar.gz",
-                    "description": "URL of the CheckV-UHVDB tarball on Kopah S3 (first download attempt).",
-                    "hidden": true,
-                    "fa_icon": "fas fa-cloud-download-alt"
-                },
-                "checkv_zenodo": {
-                    "type": "string",
-                    "default": "https://zenodo.org/api/records/21229765/files/uhvdb_checkv_5.1.tar.gz/content",
-                    "description": "URL of the CheckV-UHVDB tarball on Zenodo (retry fallback).",
-                    "hidden": true,
-                    "fa_icon": "fas fa-cloud-download-alt"
                 }
             }
         },
