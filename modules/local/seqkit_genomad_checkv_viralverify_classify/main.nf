@@ -59,8 +59,8 @@ process SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY {
             -p ^ -r "\${sample_id}_" \\
             --out-file "tmp/\${sample_id}.fna.gz"
     done <<'RECORDS'
-    ${records}
-    RECORDS
+${records}
+RECORDS
 
     cat tmp/*.fna.gz > ${prefix}_combined_filtered.fasta.gz
 

@@ -14,7 +14,11 @@ process EMPATHI_INSTALL {
 
     script:
     """
-    ### Install git lfs
+    ### Install git-lfs into the task work directory.
+    ### Nextflow Singularity/Apptainer uses --no-home, so ~/.gitconfig is not writable.
+    export HOME="\$PWD"
+    export GIT_CONFIG_GLOBAL="\$PWD/.gitconfig"
+    touch "\$GIT_CONFIG_GLOBAL"
     git lfs install
 
     ### Clone empathi models

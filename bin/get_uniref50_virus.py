@@ -5,7 +5,7 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 
 re_next_link = re.compile(r'<(.+)>; rel="next"')
-retries = Retry(total=5, backoff_factor=0.25, status_forcelist=[500, 502, 503, 504])
+retries = Retry(total=8, backoff_factor=5, status_forcelist=[429, 500, 502, 503, 504])
 session = requests.Session()
 session.mount("https://", HTTPAdapter(max_retries=retries))
 
@@ -25,7 +25,7 @@ def get_batch(batch_url):
         batch_url = get_next_link(response.headers)
 
 def main(fasta_url, output_fasta):
-    retries = Retry(total=5, backoff_factor=0.25, status_forcelist=[500, 502, 503, 504])
+    retries = Retry(total=8, backoff_factor=5, status_forcelist=[429, 500, 502, 503, 504])
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 

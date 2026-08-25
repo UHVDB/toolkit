@@ -21,7 +21,7 @@ process KMERDB_LZANI_CSVTK {
     def prefix = task.ext.prefix ?: "${meta.id}.new2old"
     """
     ### Build reference database
-    echo "${ref_fasta}" > ref_kdb.txt
+    echo "${ref_fasta}" >| ref_kdb.txt
 
     kmer-db \\
         build \\
@@ -32,7 +32,7 @@ process KMERDB_LZANI_CSVTK {
         ref.kdb
 
     ### compare query to ref
-    echo "${query_fasta}" > query_kdb.txt
+    echo "${query_fasta}" >| query_kdb.txt
 
     kmer-db \\
         new2all \\
@@ -58,7 +58,7 @@ process KMERDB_LZANI_CSVTK {
         -i query_v_ref.dist.csv \\
         -o query_v_ref.dist_mod.csv
 
-    zcat ${ref_fasta} > ref_query.combined.fna
+    zcat ${ref_fasta} >| ref_query.combined.fna
     zcat ${query_fasta} >> ref_query.combined.fna
 
     ### Align with LZ-ANI
@@ -73,7 +73,7 @@ process KMERDB_LZANI_CSVTK {
         --out-filter ani ${min_ani} \\
         --out-filter qcov ${min_qcov}
 
-    gzip -c ${prefix}.lzani.tsv > ${prefix}.lzani.tsv.gz
+    gzip -c ${prefix}.lzani.tsv >| ${prefix}.lzani.tsv.gz
 
     ### Extract new species
     csvtk cut \\
