@@ -120,20 +120,20 @@ Below is a schematic overview of the UHVDB toolkit, followed by a brief explanat
 
 If you are new to Nextflow and nf-core, see the [environment setup overview](https://nf-co.re/docs/get_started/environment_setup/overview).
 
-1. Install micromamba
+### 1. Install micromamba
 
 ```bash
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 ```
 
-2. Create and activate a Nextflow environment
+### 2. Create and activate a Nextflow environment
 
 ```bash
 micromamba create -n nextflow -c conda-forge -c bioconda nextflow=25.10.4 -y
 micromamba activate nextflow
 ```
 
-3. Run the `test_analyze` profile to test metagenome analysis with UHVDB.
+### 3. Run the `test_analyze` profile to test metagenome analysis with UHVDB.
 
 Navigate to a directory with at least 10 GB of disk available.
 
@@ -153,16 +153,37 @@ cd <target_dir>
 nextflow run UHVDB/toolkit -profile singularity,test_analyze -latest --outdir <OUTDIR>
 ```
 
-4. Run the `test_update` profile to test adding viruses to UHVDB.
+### 4. View the primary outputs
+(`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.mpa`)
+
+#### Fields:
+* `clade_name`: the taxonomic rank (or genome if t__*) depicted in the row.
+* `relative_abundance`: normalized taxonomic abundance as a percentage. Coverage-normalized - same as MetaPhlAn abundance.
+* `sequence_abundance`: normalized sequence abundance as a percentage. The "percentage of reads" assigned to each genome - same as Kraken abundance.
+* `ani`: sylph's adjusted containment ANI estimate.
+* `coverage`: sylph's estimate of genome coverage.
+* `virus_host`: for UHVDB species with a predicted host the predicted taxa species is displayed here.
+* `virus_lifestyle`: for UHVDB species, the predicted virus lifestyle is displayed here.
+* `pth_ratio`: for UHVDB a species with predicted host species in the same sample, the phage-to-host (PTH) coverage ratio is displayed here.
+* `uninducible_probability`: the probability that a virus is an uninducible prophage as determined using a random forest classifier.
+* `uninducible_tier`: the approximate percent of viruses that are truly uninducible when having a classifier probability of this value.
+
+```tsv
+#SampleID	SRR8834030_R1.deacon.fastq.gz	Taxonomies_used:['gtdb_r214_metadata.tsv.gz', 'uhvdb_metadata_sylphtax.tsv.gz']
+clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	uninducible_probability	uninducible_tier
+d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA
+Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA
+.
+.
+.
+d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	NA	NA
+Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	0.685109617048556	85% precision
+```
+
+### *OPTIONAL:. Run the `test_update` profile to test adding viruses to UHVDB. (Note: the downloads and processes for this test require > 100GB disk a significant amount of wall time)*
 
 ```bash
 nextflow run UHVDB/toolkit -profile singularity,test_update -latest --outdir <OUTDIR>
-```
-
-To run a larger update against the full UHVDB v6 database with 20 ENA human metagenomes released after 2026-01-01:
-
-```bash
-nextflow run UHVDB/toolkit -profile test_update_full,uw_hyak --outdir <OUTDIR>
 ```
 
 > [!WARNING]
@@ -279,10 +300,36 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 > 1. download analyze-prefix UHVDB files (`s3://uhvdb/<version>/analyze/`, ~21 GiB)
 > 2. download and preprocess reads
 > 3. taxonomically profile reads with sylph and CoverM
-> 4. calculate gene coverage for detected UHVDB genomes
+> 4. annotate UHVDB viruses with taxonomy, lifestyle, and predicted hosts
+> 5. calculate phage-to-host ratios
+> 6. label viruses with the probability that the sequence is an uninducible prophage
 
 4. Analyse the outputs
-> After the pipeline has completed, sylph profiles, CoverM depth tables, gene-coverage tables, merged sylph-tax reports, and Caudoviricetes uninducible-prophage scores (`*_reference_activity.tsv.gz`) are written under `<outdir>/` by process name.
+> After the pipeline has completed the final outputs will be stored here: (`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.mpa`)
+
+#### Fields:
+* `clade_name`: the taxonomic rank (or genome if t__*) depicted in the row.
+* `relative_abundance`: normalized taxonomic abundance as a percentage. Coverage-normalized - same as MetaPhlAn abundance.
+* `sequence_abundance`: normalized sequence abundance as a percentage. The "percentage of reads" assigned to each genome - same as Kraken abundance.
+* `ani`: sylph's adjusted containment ANI estimate.
+* `coverage`: sylph's estimate of genome coverage.
+* `virus_host`: for UHVDB species with a predicted host the predicted taxa species is displayed here.
+* `virus_lifestyle`: for UHVDB species, the predicted virus lifestyle is displayed here.
+* `pth_ratio`: for UHVDB a species with predicted host species in the same sample, the phage-to-host (PTH) coverage ratio is displayed here.
+* `uninducible_probability`: the probability that a virus is an uninducible prophage as determined using a random forest classifier.
+* `uninducible_tier`: the approximate percent of viruses that are truly uninducible when having a classifier probability of this value.
+
+```tsv
+#SampleID	SRR8834030_R1.deacon.fastq.gz	Taxonomies_used:['gtdb_r214_metadata.tsv.gz', 'uhvdb_metadata_sylphtax.tsv.gz']
+clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	uninducible_probability	uninducible_tier
+d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA
+Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA
+.
+.
+.
+d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	NA	NA
+Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	0.685109617048556	85% precision
+```
 
 </details>
 
