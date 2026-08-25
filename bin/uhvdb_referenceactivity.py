@@ -28,6 +28,26 @@ OUTPUT_COLS = [
     "predicted_uninducible",
     "inactive_confidence_tier",
 ]
+SYLPHMPA_COLUMN_RENAMES = {
+    "ANI (if strain-level)": "ani",
+    "Coverage (if strain-level)": "coverage",
+    "Virus_host (if viral)": "virus_host",
+    "lifestyle": "virus_lifestyle",
+    "inactivity_probability": "uninducible_probability",
+    "inactive_confidence_tier": "uninducible_tier",
+}
+SYLPHMPA_OUTPUT_COLS = [
+    "clade_name",
+    "relative_abundance",
+    "sequence_abundance",
+    "ani",
+    "coverage",
+    "virus_host",
+    "virus_lifestyle",
+    "pth_ratio",
+    "uninducible_probability",
+    "uninducible_tier",
+]
 
 
 def parse_args(args=None):
@@ -94,7 +114,13 @@ def parse_args(args=None):
         required=True,
         help="Output TSV path (uncompressed).",
     )
-    parser.add_argument("--version", action="version", version="1.1.0")
+    parser.add_argument(
+        "-so",
+        "--sylph_tax_output",
+        required=True,
+        help="Annotated sylph-tax MPA path with virus lifestyle, PTH ratio, uninducible probability, and tier.",
+    )
+    parser.add_argument("--version", action="version", version="1.3.0")
     return parser.parse_args(args)
 
 
@@ -571,6 +597,7 @@ def species_rep_metadata(uhvdb):
             ),
             _col(df, "Score", pl.Float64),
             _col(df, "completeness", pl.Float64),
+            _col(df, "virus_score", pl.Float64),
             _col(df, "host_genes", pl.Float64),
             _col(df, "viral_genes", pl.Float64),
             _col(df, "contig_length", pl.Float64),
@@ -626,20 +653,476 @@ def species_rep_metadata(uhvdb):
             ),
             pl.col("contig_length").log1p().alias("log_contig_length"),
             pl.col("n_genes").log1p().alias("log_n_genes"),
+            (
+                pl.col("viral_genes").cast(pl.Float64, strict=False)
+                / (
+                    pl.col("viral_genes").cast(pl.Float64, strict=False)
+                    + pl.col("host_genes").cast(pl.Float64, strict=False)
+                )
+            ).alias("viral_gene_frac"),
         ]
     )
 
 
-def confidence_tier(prob, t90, t75, t50):
+def confidence_tier(prob, t95, t90, t85):
     if prob is None or (isinstance(prob, float) and np.isnan(prob)):
         return "No prediction"
+    if prob >= t95:
+        return "95% precision"
     if prob >= t90:
-        return "High"
-    if prob >= t75:
-        return "Medium"
-    if prob >= t50:
-        return "Low"
+        return "90% precision"
+    if prob >= t85:
+        return "85% precision"
     return "No prediction"
+
+
+def _empty_lifestyle():
+    return pl.DataFrame(schema={"species_cluster_id": pl.Int64, "lifestyle": pl.Utf8})
+
+
+def _empty_host():
+    return pl.DataFrame(
+        schema={
+            "species_cluster_id": pl.Int64,
+            "final_species": pl.Utf8,
+            "final_genus": pl.Utf8,
+            "final_family": pl.Utf8,
+        }
+    )
+
+
+def _empty_pth():
+    return pl.DataFrame(schema={"species_cluster_id": pl.Int64, "pth_ratio": pl.Float64})
+
+
+def _empty_inactivity():
+    return pl.DataFrame(
+        schema={
+            "species_cluster_id": pl.Int64,
+            "inactivity_probability": pl.Float64,
+            "inactive_confidence_tier": pl.Utf8,
+        }
+    )
+
+
+def _abund_col(df):
+    if df is None or not df.columns:
+        return None
+    for name in ("relative_abundance", "taxonomic_abundance"):
+        if name in df.columns:
+            return name
+    return df.columns[1] if len(df.columns) > 1 else None
+
+
+def _extract_lineage_rank(lineage_col, prefix):
+    return (
+        pl.col(lineage_col)
+        .cast(pl.Utf8)
+        .str.replace_all(";", "|")
+        .str.extract(rf"{prefix}([^|;]+)", 1)
+    )
+
+
+def _majority_host(df, col):
+    if col not in df.columns:
+        return pl.DataFrame(schema={"species_cluster_id": pl.Int64, col: pl.Utf8})
+    ranked = (
+        df.filter(pl.col(col).is_not_null())
+        .group_by(["species_cluster_id", col])
+        .agg(pl.len().alias("_n"))
+        .sort(["species_cluster_id", "_n", col], descending=[False, True, False])
+        .unique("species_cluster_id", keep="first")
+        .select(["species_cluster_id", col])
+    )
+    return ranked
+
+
+def species_lifestyle(uhvdb):
+    if uhvdb is None or "species_cluster_id" not in uhvdb.columns:
+        return _empty_lifestyle()
+    has_integrated = (
+        (pl.col("integration_status") == "integrated")
+        if "integration_status" in uhvdb.columns
+        else (pl.col("provirus") == "Yes")
+        if "provirus" in uhvdb.columns
+        else pl.lit(False)
+    )
+    temperate = (
+        pl.col("temperate").cast(pl.Float64, strict=False) > 0.5
+        if "temperate" in uhvdb.columns
+        else pl.lit(False)
+    )
+    phrog = (
+        pl.col("phrog_integration_excision").cast(pl.Float64, strict=False).fill_null(0) > 0
+        if "phrog_integration_excision" in uhvdb.columns
+        else pl.lit(False)
+    )
+    empathi = (
+        pl.col("empathi_integration").cast(pl.Float64, strict=False).fill_null(0) > 0
+        if "empathi_integration" in uhvdb.columns
+        else pl.lit(False)
+    )
+    return (
+        uhvdb.with_columns(pl.col("species_cluster_id").cast(pl.Int64, strict=False))
+        .filter(pl.col("species_cluster_id").is_not_null())
+        .group_by("species_cluster_id")
+        .agg(
+            [
+                has_integrated.any().alias("has_integrated"),
+                temperate.any().alias("has_bacphlip_temperate"),
+                (phrog | empathi).any().alias("has_integration_gene"),
+            ]
+        )
+        .with_columns(
+            pl.when(
+                pl.col("has_integrated")
+                | pl.col("has_bacphlip_temperate")
+                | pl.col("has_integration_gene")
+            )
+            .then(pl.lit("Temperate"))
+            .otherwise(pl.lit("Virulent"))
+            .alias("lifestyle")
+        )
+        .select(["species_cluster_id", "lifestyle"])
+    )
+
+
+def species_host(uhvdb):
+    if uhvdb is None or "species_cluster_id" not in uhvdb.columns:
+        return _empty_host()
+    df = uhvdb.with_columns(pl.col("species_cluster_id").cast(pl.Int64, strict=False))
+    if "genomovar_rep" in df.columns and "uhvdb_id" in df.columns:
+        df = df.filter(pl.col("uhvdb_id") == pl.col("genomovar_rep"))
+    elif "seq_name" in df.columns and "seqhash_rep" in df.columns:
+        df = df.filter(pl.col("seq_name") == pl.col("seqhash_rep"))
+    lineage_col = "host_lineage" if "host_lineage" in df.columns else (
+        "final_host_lineage" if "final_host_lineage" in df.columns else None
+    )
+    if lineage_col is not None:
+        df = df.with_columns(
+            [
+                _extract_lineage_rank(lineage_col, "s__").alias("final_species"),
+                _extract_lineage_rank(lineage_col, "g__").alias("final_genus"),
+                _extract_lineage_rank(lineage_col, "f__").alias("final_family"),
+            ]
+        )
+    else:
+        df = df.with_columns(
+            [
+                pl.lit(None).cast(pl.Utf8).alias("final_species"),
+                pl.lit(None).cast(pl.Utf8).alias("final_genus"),
+                pl.lit(None).cast(pl.Utf8).alias("final_family"),
+            ]
+        )
+    if "final_host_pred" in df.columns:
+        df = df.with_columns(
+            pl.coalesce(
+                [
+                    pl.col("final_species"),
+                    pl.when(pl.col("final_host_pred").cast(pl.Utf8).str.contains(r"\s"))
+                    .then(pl.col("final_host_pred").cast(pl.Utf8))
+                    .otherwise(None),
+                ]
+            ).alias("final_species")
+        )
+    hosts = (
+        df.filter(pl.col("species_cluster_id").is_not_null())
+        .unique("uhvdb_id" if "uhvdb_id" in df.columns else "species_cluster_id")
+        .select(["species_cluster_id", "final_species", "final_genus", "final_family"])
+    )
+    return (
+        hosts.select("species_cluster_id")
+        .unique()
+        .join(_majority_host(hosts, "final_species"), on="species_cluster_id", how="left")
+        .join(_majority_host(hosts, "final_genus"), on="species_cluster_id", how="left")
+        .join(_majority_host(hosts, "final_family"), on="species_cluster_id", how="left")
+    )
+
+
+def read_sylphmpa(path, as_strings=False):
+    with open(path, encoding="utf-8") as fh:
+        first = fh.readline()
+    comment = first if first.startswith("#") else None
+    skip = 1 if comment else 0
+    kwargs = {"separator": "\t", "skip_rows": skip}
+    if as_strings:
+        kwargs["infer_schema_length"] = 0
+    df = _read_csv(path, **kwargs)
+    return comment, df
+
+
+def write_sylphmpa(comment, df, output_path):
+    cols = df.columns
+    with open(output_path, "w", encoding="utf-8", newline="") as fh:
+        if comment:
+            fh.write(comment if comment.endswith("\n") else comment + "\n")
+        fh.write("\t".join(cols) + "\n")
+        for row in df.iter_rows():
+            fh.write("\t".join("NA" if v is None else str(v) for v in row) + "\n")
+
+
+def virus_abund_from_sylph(df, sample_id):
+    abund = _abund_col(df)
+    if df is None or abund is None or "clade_name" not in df.columns:
+        return pl.DataFrame(
+            schema={
+                "sample_id": pl.Utf8,
+                "species_cluster_id": pl.Int64,
+                "virus_tax_abund": pl.Float64,
+            }
+        )
+    return (
+        df.filter(pl.col("clade_name").str.starts_with("Viruses"))
+        .filter(pl.col("clade_name").str.contains(r"vSPECIES-\d+"))
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                pl.col("clade_name")
+                .str.extract(r"vSPECIES-(\d+)", 1)
+                .cast(pl.Int64, strict=False)
+                .alias("species_cluster_id"),
+                pl.col(abund).cast(pl.Float64, strict=False).alias("virus_tax_abund"),
+            ]
+        )
+        .filter(pl.col("species_cluster_id").is_not_null())
+        .filter(pl.col("virus_tax_abund") > 0)
+        .group_by(["sample_id", "species_cluster_id"])
+        .agg(pl.col("virus_tax_abund").max())
+    )
+
+
+def bacteria_from_sylph(df, sample_id):
+    abund = _abund_col(df)
+    empty = pl.DataFrame(
+        schema={
+            "sample_id": pl.Utf8,
+            "species": pl.Utf8,
+            "genus": pl.Utf8,
+            "family": pl.Utf8,
+            "host_tax_abund": pl.Float64,
+        }
+    )
+    if df is None or abund is None or "clade_name" not in df.columns:
+        return empty
+    bac = (
+        df.filter(
+            pl.col("clade_name").str.starts_with("d__Bacteria")
+            | pl.col("clade_name").str.contains(r"(^|\|)d__Bacteria")
+        )
+        .filter(pl.col("clade_name").str.contains(r"s__"))
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                pl.col("clade_name").str.replace_all(";", "|"),
+                pl.col("clade_name").str.extract(r"s__([^|;]+)", 1).alias("species"),
+                pl.col("clade_name").str.extract(r"g__([^|;]+)", 1).alias("genus"),
+                pl.col("clade_name").str.extract(r"f__([^|;]+)", 1).alias("family"),
+                pl.col(abund).cast(pl.Float64, strict=False).alias("host_tax_abund"),
+            ]
+        )
+        .filter(pl.col("species").is_not_null())
+        .filter(pl.col("host_tax_abund") > 0)
+        .group_by(["sample_id", "species", "genus", "family"])
+        .agg(pl.col("host_tax_abund").max())
+    )
+    return bac if bac.height else empty
+
+
+def bacteria_from_profile(path, sample_id):
+    empty = pl.DataFrame(
+        schema={
+            "sample_id": pl.Utf8,
+            "species": pl.Utf8,
+            "genus": pl.Utf8,
+            "family": pl.Utf8,
+            "host_tax_abund": pl.Float64,
+        }
+    )
+    raw = _read_csv(path, separator="\t")
+    if raw is None or "Contig_name" not in raw.columns:
+        return empty
+    abund = "Taxonomic_abundance" if "Taxonomic_abundance" in raw.columns else None
+    if abund is None:
+        return empty
+    rest = pl.col("Contig_name").str.replace(r"^\S+\s+", "")
+    bac = (
+        raw.filter(~pl.col("Contig_name").str.starts_with("UHVDB-"))
+        .with_columns(
+            [
+                pl.lit(sample_id).alias("sample_id"),
+                rest.str.extract(r"^([A-Za-z0-9_]+ [A-Za-z0-9_.]+)", 1).alias("species"),
+                rest.str.extract(r"^([A-Za-z0-9_]+)", 1).alias("genus"),
+                pl.lit(None).cast(pl.Utf8).alias("family"),
+                pl.col(abund).cast(pl.Float64, strict=False).alias("host_tax_abund"),
+            ]
+        )
+        .filter(pl.col("species").is_not_null())
+        .filter(pl.col("host_tax_abund") > 0)
+        .group_by(["sample_id", "species", "genus", "family"])
+        .agg(pl.col("host_tax_abund").sum())
+    )
+    return bac if bac.height else empty
+
+
+def compute_pth_ratio(viruses, bac, host):
+    empty = _empty_pth()
+    if viruses.height == 0 or bac.height == 0 or host.height == 0:
+        return empty
+    viruses = viruses.join(host, on="species_cluster_id", how="left").with_columns(
+        [
+            pl.col("final_genus").alias("host_genus"),
+            pl.col("final_family").alias("host_family"),
+        ]
+    )
+    species_hits = (
+        viruses.filter(pl.col("final_species").is_not_null() & (pl.col("virus_tax_abund") > 0))
+        .join(
+            bac.select(["sample_id", "species", "host_tax_abund"]),
+            left_on=["sample_id", "final_species"],
+            right_on=["sample_id", "species"],
+            how="inner",
+        )
+        .with_columns(pl.lit("species_codetected").alias("host_match_method"))
+    )
+    matched = species_hits.select(["sample_id", "species_cluster_id"]).unique()
+    genus_singleton = (
+        bac.filter(pl.col("genus").is_not_null())
+        .group_by(["sample_id", "genus"])
+        .agg(
+            [
+                pl.len().alias("n_species"),
+                pl.col("species").first().alias("species"),
+                pl.col("host_tax_abund").first().alias("host_tax_abund"),
+            ]
+        )
+        .filter(pl.col("n_species") == 1)
+    )
+    genus_hits = (
+        viruses.join(matched, on=["sample_id", "species_cluster_id"], how="anti")
+        .filter(pl.col("host_genus").is_not_null() & (pl.col("virus_tax_abund") > 0))
+        .join(
+            genus_singleton.select(["sample_id", "genus", "species", "host_tax_abund"]),
+            left_on=["sample_id", "host_genus"],
+            right_on=["sample_id", "genus"],
+            how="inner",
+        )
+        .with_columns(pl.lit("genus_singleton").alias("host_match_method"))
+    )
+    matched = pl.concat(
+        [matched, genus_hits.select(["sample_id", "species_cluster_id"]).unique()]
+    ).unique()
+    family_singleton = (
+        bac.filter(pl.col("family").is_not_null())
+        .group_by(["sample_id", "family"])
+        .agg(
+            [
+                pl.len().alias("n_species"),
+                pl.col("species").first().alias("species"),
+                pl.col("host_tax_abund").first().alias("host_tax_abund"),
+            ]
+        )
+        .filter(pl.col("n_species") == 1)
+    )
+    family_hits = (
+        viruses.join(matched, on=["sample_id", "species_cluster_id"], how="anti")
+        .filter(pl.col("host_family").is_not_null() & (pl.col("virus_tax_abund") > 0))
+        .join(
+            family_singleton.select(["sample_id", "family", "species", "host_tax_abund"]),
+            left_on=["sample_id", "host_family"],
+            right_on=["sample_id", "family"],
+            how="inner",
+        )
+        .with_columns(pl.lit("family_singleton").alias("host_match_method"))
+    )
+    pth_cols = [
+        "sample_id",
+        "species_cluster_id",
+        "virus_tax_abund",
+        "host_tax_abund",
+        "host_match_method",
+    ]
+    frames = [df.select(pth_cols) for df in (species_hits, genus_hits, family_hits) if df.height]
+    if not frames:
+        return empty
+    pth = (
+        pl.concat(frames)
+        .with_columns((pl.col("virus_tax_abund") / pl.col("host_tax_abund")).alias("pth_ratio"))
+        .filter(pl.col("host_tax_abund") > 0)
+        .sort(
+            ["sample_id", "species_cluster_id", "virus_tax_abund"],
+            descending=[False, False, True],
+        )
+        .unique(["sample_id", "species_cluster_id"], keep="first")
+    )
+    method_counts = pth.group_by("host_match_method").len().sort("host_match_method")
+    print(f"PTH ratios for {pth.height} virus species", file=sys.stderr)
+    print(method_counts, file=sys.stderr)
+    return pth.select(["species_cluster_id", "pth_ratio"])
+
+
+def write_annotated_sylphmpa(sylph_tax_path, output_path, lifestyle, pth, inactivity):
+    comment, df = read_sylphmpa(sylph_tax_path, as_strings=True)
+    if df is None:
+        df = pl.DataFrame(
+            schema={
+                "clade_name": pl.Utf8,
+                "relative_abundance": pl.Float64,
+                "sequence_abundance": pl.Float64,
+                "ANI (if strain-level)": pl.Utf8,
+                "Coverage (if strain-level)": pl.Utf8,
+                "Virus_host (if viral)": pl.Utf8,
+            }
+        )
+    df = df.with_columns(
+        pl.when(pl.col("clade_name").str.contains(r"vSPECIES-\d+"))
+        .then(pl.col("clade_name").str.extract(r"vSPECIES-(\d+)", 1).cast(pl.Int64, strict=False))
+        .otherwise(None)
+        .alias("_species_cluster_id")
+    )
+    df = (
+        df.join(lifestyle, left_on="_species_cluster_id", right_on="species_cluster_id", how="left")
+        .join(pth, left_on="_species_cluster_id", right_on="species_cluster_id", how="left")
+        .join(
+            inactivity,
+            left_on="_species_cluster_id",
+            right_on="species_cluster_id",
+            how="left",
+        )
+        .drop("_species_cluster_id")
+    )
+    for old, new in SYLPHMPA_COLUMN_RENAMES.items():
+        if old in df.columns:
+            df = df.rename({old: new})
+    for col in SYLPHMPA_OUTPUT_COLS:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(None).alias(col))
+    write_sylphmpa(comment, df.select(SYLPHMPA_OUTPUT_COLS), output_path)
+
+
+def finish(args, uhvdb, scored):
+    lifestyle = species_lifestyle(uhvdb)
+    host = species_host(uhvdb)
+    _comment, sylph_df = read_sylphmpa(args.sylph_tax)
+    viruses = virus_abund_from_sylph(sylph_df, args.sample_id)
+    bac = bacteria_from_sylph(sylph_df, args.sample_id)
+    if bac.height == 0:
+        bac = bacteria_from_profile(args.profile, args.sample_id)
+    pth = compute_pth_ratio(viruses, bac, host)
+    if scored.height and "predicted_inactive_probability" in scored.columns:
+        inactivity = scored.select(
+            [
+                pl.col("species_cluster_id").cast(pl.Int64, strict=False),
+                pl.col("predicted_inactive_probability").alias("inactivity_probability"),
+                pl.col("inactive_confidence_tier"),
+            ]
+        ).unique("species_cluster_id", keep="first")
+    else:
+        inactivity = _empty_inactivity()
+    write_annotated_sylphmpa(
+        args.sylph_tax, args.sylph_tax_output, lifestyle, pth, inactivity
+    )
+    write_tsv(scored, args.output)
+    return 0
 
 
 def main(args=None):
@@ -648,16 +1131,15 @@ def main(args=None):
     model_meta = joblib.load(args.metadata_path)
     pipeline = joblib.load(args.model_path)
     required_features = list(model_meta["numeric_cols"])
+    t95 = float(model_meta["thresh_95"])
     t90 = float(model_meta["thresh_90"])
-    t75 = float(model_meta["thresh_75"])
-    t50 = float(model_meta["thresh_50"])
+    t85 = float(model_meta["thresh_85"])
     ictv_class_filter = model_meta.get("ictv_class_filter", "Caudoviricetes")
 
     uhvdb = _read_csv(args.uhvdb_metadata, separator="\t")
     coverm = load_coverm(args.coverm, args.sample_id, args.group)
     if uhvdb is None or coverm is None:
-        write_tsv(_empty_output(), args.output)
-        return 0
+        return finish(args, uhvdb, _empty_output())
 
     drop_cols = [c for c in META_HALLMARK_COLLISION_COLS if c in uhvdb.columns]
     uhvdb_for_join = uhvdb.drop(drop_cols) if drop_cols else uhvdb
@@ -686,8 +1168,7 @@ def main(args=None):
             f"No {ictv_class_filter} detections ({n_before} species-rep rows before ICTV filter)",
             file=sys.stderr,
         )
-        write_tsv(_empty_output(), args.output)
-        return 0
+        return finish(args, uhvdb, _empty_output())
 
     gene_raw = _read_csv(args.gene_coverage, separator="\t")
     if gene_raw is None:
@@ -770,8 +1251,8 @@ def main(args=None):
     x_new = features.select(required_features).to_pandas()
     x_new = x_new.replace([np.inf, -np.inf], np.nan)
     probs = pipeline.predict_proba(x_new)[:, 1]
-    pred = (probs >= t90).astype(int)
-    tiers = [confidence_tier(p, t90, t75, t50) for p in probs]
+    pred = (probs >= t95).astype(int)
+    tiers = [confidence_tier(p, t95, t90, t85) for p in probs]
 
     scored = features.with_columns(
         [
@@ -783,11 +1264,10 @@ def main(args=None):
 
     print(
         f"Scored {scored.height} {ictv_class_filter} detections "
-        f"(p>=thresh_90: {int(pred.sum())})",
+        f"(p>=thresh_95: {int(pred.sum())})",
         file=sys.stderr,
     )
-    write_tsv(scored, args.output)
-    return 0
+    return finish(args, uhvdb, scored)
 
 
 if __name__ == "__main__":

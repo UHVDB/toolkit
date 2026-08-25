@@ -9,13 +9,14 @@ process UHVDB_REFERENCEACTIVITY {
         'community.wave.seqera.io/library/numpy_pandas_polars_pyarrow_pruned:bdf89707e543c55b' }"
 
     input:
-    tuple val(meta), path(sylph_tax), path(coverm_tsv_gz), path(profile_tsv), path(gene_coverage_tsv_gz)
+    tuple val(meta), path(sylph_tax, stageAs: 'input.sylphmpa'), path(coverm_tsv_gz), path(profile_tsv), path(gene_coverage_tsv_gz)
     path(uhvdb_metadata_tsv_gz)
     path(model_path)
     path(metadata_path)
 
     output:
-    tuple val(meta), path("${meta.id}_reference_activity.tsv.gz"), emit: tsv_gz
+    tuple val(meta), path("${meta.id}.sylphmpa")                     , emit: sylphmpa
+    // tuple val(meta), path("${meta.id}_reference_activity.tsv.gz")    , emit: tsv_gz
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
@@ -31,7 +32,8 @@ process UHVDB_REFERENCEACTIVITY {
         --metadata_path ${metadata_path} \\
         --sample_id '${meta.id}' \\
         --group '${group}' \\
-        --output ${prefix}_reference_activity.tsv
+        --output ${prefix}_reference_activity.tsv \\
+        --sylph_tax_output ${prefix}.sylphmpa
 
     python -c "import gzip, shutil, os; src='${prefix}_reference_activity.tsv'; shutil.copyfileobj(open(src,'rb'), gzip.open(src+'.gz','wb')); os.unlink(src)"
     """
@@ -39,6 +41,7 @@ process UHVDB_REFERENCEACTIVITY {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
+    python -c "open('${prefix}.sylphmpa', 'w').write('#SampleID\\tstub\\nclade_name\\trelative_abundance\\tsequence_abundance\\tani\\tcoverage\\tvirus_host\\tvirus_lifestyle\\tpth_ratio\\tuninducible_probability\\tuninducible_tier\\n')"
     python -c "import gzip; gzip.open('${prefix}_reference_activity.tsv.gz', 'wt').write('sample_id\\tgroup\\tspecies_cluster_id\\tuhvdb_id\\tictv_class\\tpredicted_inactive_probability\\tpredicted_uninducible\\tinactive_confidence_tier\\n')"
     """
 }

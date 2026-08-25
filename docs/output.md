@@ -53,11 +53,14 @@ These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and 
 <summary>Output files</summary>
 
 - `uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/`
+  - `*.sylphmpa`: per-sample sylph-tax profile with `virus_lifestyle`, `pth_ratio`, `uninducible_probability`, and `uninducible_tier` appended (alongside renamed base columns `ani`, `coverage`, and `virus_host`). Virus lifestyle (Temperate / Virulent) is filled for virus species rows. PTH ratio is filled when a predicted host is co-detected. Uninducible probability and tier are filled for Caudoviricetes species scored by the classifier; other rows are `NA`.
   - `*_reference_activity.tsv.gz`: per-sample inactive-virus scores for detected Caudoviricetes species representatives.
 
 </details>
 
-These files are produced when `--run_analyze` is set and CoverM plus gene-coverage tables exist for a sample. The classifier is the figure_s15 Caudoviricetes model (`assets/models/phage_activity_model_full.joblib`). Class 1 is uninducible / inactive (bulk-detected, not enriched). `predicted_uninducible` is 1 when `predicted_inactive_probability` is at least the model's 90% precision threshold. `inactive_confidence_tier` is High / Medium / Low / No prediction from the 90 / 75 / 50% thresholds. Non-Caudoviricetes detections are not scored.
+These files are produced when `--run_analyze` is set and CoverM plus gene-coverage tables exist for a sample. The classifier is the figure_s15 Caudoviricetes story-20 random-forest model (`assets/models/phage_activity_model_full.joblib`). Class 1 is uninducible / inactive (bulk-detected, not enriched). `predicted_uninducible` is 1 when `predicted_inactive_probability` is at least the model's 95% precision threshold. `inactive_confidence_tier` is 95% precision / 90% precision / 85% precision / No prediction from the corresponding out-of-fold precision thresholds. Non-Caudoviricetes detections are not scored.
+
+Lifestyle is Temperate when any genomovar in the species is integrated, has BACPHLIP temperate probability > 0.5, or carries an integration-related PHROG/Empathi gene; otherwise Virulent. PTH ratio is virus relative abundance divided by co-detected host abundance, using a species then genus-singleton then family-singleton cascade.
 
 ### MultiQC
 

@@ -2,6 +2,7 @@ include { CSVTK_SEQKIT                                                   } from 
 include { SYLPH_SKETCHGENOMES                                            } from '../../../modules/nf-core/sylph/sketchgenomes/main'
 include { SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE     } from '../../../modules/local/sracha_fastp_deacon_sylph_csvtk_seqkit_coverm_genecoverage/main'
 include { FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE            } from '../../../modules/local/fastp_deacon_sylph_csvtk_seqkit_coverm_genecoverage/main'
+include { SYLPHTAX_DOWNLOAD                                              } from '../../../modules/local/sylphtax/download/main'
 include { SYLPHTAX_TAXPROF                                               } from '../../../modules/nf-core/sylphtax/taxprof/main'
 include { SYLPHTAX_MERGE                                                 } from '../../../modules/nf-core/sylphtax/merge/main'
 include { UHVDB_REFERENCEACTIVITY                                        } from '../../../modules/local/uhvdb/referenceactivity/main'
@@ -68,11 +69,19 @@ workflow REFERENCEANALYZE {
     ch_gene_coverage_tsv_gz = ch_gene_coverage_tsv_gz.mix(FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE.out.gene_coverage_tsv_gz)
 
     //
+    // MODULE: Download GTDB taxonomy metadata for sylph-tax
+    //
+    SYLPHTAX_DOWNLOAD()
+    ch_taxonomy = SYLPHTAX_DOWNLOAD.out.tsv_gz
+        .concat(uhvdb_metadata_sylphtax_tsv_gz.flatten())
+        .collect()
+
+    //
     // MODULE: Run sylph-tax
     //
     SYLPHTAX_TAXPROF(
         ch_profile_tsv,
-        uhvdb_metadata_sylphtax_tsv_gz
+        ch_taxonomy
     )
 
     //

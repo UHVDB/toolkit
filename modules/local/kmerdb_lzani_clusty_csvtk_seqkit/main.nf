@@ -24,7 +24,7 @@ process KMERDB_LZANI_CLUSTY_CSVTK_SEQKIT {
     def args5 = task.ext.args5 ?: ''
     """
     ### Build reference database
-    echo "${ref_fasta}" > ref_kdb.txt
+    echo "${ref_fasta}" >| ref_kdb.txt
 
     kmer-db \\
         build \\
@@ -35,7 +35,7 @@ process KMERDB_LZANI_CLUSTY_CSVTK_SEQKIT {
         ref.kdb
 
     ### compare query to ref
-    echo "${query_fasta}" > query_kdb.txt
+    echo "${query_fasta}" >| query_kdb.txt
 
     kmer-db \\
         new2all \\
@@ -61,7 +61,7 @@ process KMERDB_LZANI_CLUSTY_CSVTK_SEQKIT {
         -i query_v_ref.dist.csv \\
         -o query_v_ref.dist_mod.csv
 
-    cat ${ref_fasta} > ref_query.combined.fna
+    cat ${ref_fasta} >| ref_query.combined.fna
     zcat ${query_fasta} >> ref_query.combined.fna
 
     ### Align with LZ-ANI
@@ -75,7 +75,7 @@ process KMERDB_LZANI_CLUSTY_CSVTK_SEQKIT {
         --out-type tsv \\
         --flt-kmerdb query_v_ref.dist_mod.csv ${args4}
 
-    gzip -c ${prefix}.lzani.tsv > ${prefix}.lzani.tsv.gz
+    gzip -c ${prefix}.lzani.tsv >| ${prefix}.lzani.tsv.gz
 
     ### Extract new species
     csvtk filter2 \\
