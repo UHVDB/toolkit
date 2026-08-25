@@ -149,8 +149,8 @@ mkdir -p <target_dir>
 cd <target_dir>
 
 # run the pipeline
-# `singularity` can be replaced with an institutional profile (i.e. `uw_hyak`)
-nextflow run UHVDB/toolkit -profile singularity,test_analyze -latest --outdir <OUTDIR>
+# `singularity/docker` can be replaced with an institutional profile (i.e. `uw_hyak`)
+nextflow run UHVDB/toolkit -profile <singularity/docker>,test_analyze -latest --outdir <OUTDIR>
 ```
 
 ### 4. View the primary outputs
