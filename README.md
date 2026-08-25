@@ -375,7 +375,7 @@ If you would like to contribute to this database/pipeline, please join the [Slac
 
 ## Citations
 
-If you use UHVDB/toolkit for your analysis, please cite it using the following doi: [10.5281/zenodo.19831611](https://doi.org/10.5281/zenodo.19831611).
+If you use UHVDB/toolkit for your analysis, please cite it using the following doi: [10.64898/2026.05.01.722327](https://doi.org/10.64898/2026.05.01.722327).
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 
