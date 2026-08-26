@@ -57,12 +57,12 @@
             "description": "Select which toolkit modes to run and related knobs.",
             "properties": {
                 "run_update": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
                     "default": false,
                     "description": "Run the UHVDB update workflow (classify, cluster, annotate, and publish next-release tables)."
                 },
                 "run_analyze": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
                     "default": false,
                     "description": "Run the metagenome analyse workflow (sylph profiling, PTH ratios, uninducible scores)."
                 },
