@@ -107,7 +107,7 @@ Please also refer to the [pipeline-specific contribution guidelines](#pipeline-s
 - [ ] Add validation for relevant parameters to the pipeline utilisation section of `utils_nfcore_\_pipeline/main.nf` subworkflow.
 - [ ] Perform local tests to validate that the new code works as expected.
   - [ ] If applicable, add a new test in the `tests` directory.
-- [ ] Update `usage.md`, `output.md`, and `citation.md` as appropriate.
+- [ ] Update `usage.md`, `output.md`, and `CITATIONS.md` as appropriate.
 - [ ] [Lint](lint) the code with nf-core/tools.
 - [ ] Update any diagrams or pipeline images as necessary.
 - [ ] Update MultiQC config `assets/multiqc_config.yml` so relevant suffixes, file name cleanup, and module plots are in the appropriate order.
@@ -162,4 +162,8 @@ If you update images or graphics, follow the nf-core [style guidelines](https://
 
 ## Pipeline specific contribution guidelines
 
-<!-- TODO nf-core: Add any pipeline specific contribution guidelines here, such as coding styles, procedures, checklists etc. -->
+- Prefer British spelling in comments and docs.
+- Channel naming: initial channels `ch_output_from_<process>`; intermediate `ch_<previous>_for_<next>`.
+- Do not edit `conf/base.config` or igenomes configs.
+- Branch from an up-to-date `master` (or `dev` if revived); do not commit directly to `master`.
+- Before deleting modules or scripts, confirm they are unreferenced by the include graph.

@@ -6,10 +6,7 @@
 
 include { UHVDB_ANALYZEDOWNLOAD         } from '../modules/local/uhvdb/analyzedownload'
 include { UHVDB_UPDATEDOWNLOAD          } from '../modules/local/uhvdb/updatedownload'
-include { UHVDB_ANNOTATIONS_PARQUET     } from '../modules/local/uhvdb/annotationsparquet'
 include { DEACON_INDEXFETCH             } from '../modules/local/deacon/indexfetch'
-include { SRACHA_FASTP_DEACON_MEGAHIT   } from '../modules/local/sracha_fastp_deacon_megahit'
-include { FASTP_DEACON_MEGAHIT          } from '../modules/local/fastp_deacon_megahit'
 include { ASSEMBLY                      } from '../subworkflows/local/assembly'
 include { CLASSIFY                      } from '../subworkflows/local/classify'
 include { HQFILTER                      } from '../subworkflows/local/hqfilter'
@@ -262,9 +259,12 @@ workflow TOOLKIT {
             FUNCTION.out.pharokka_tsv_gz,
             FUNCTION.out.phold_tsv_gz,
             FUNCTION.out.empathi_csv_gz,
+            LIFESTYLE.out.lifestyle_tsv_gz,
             ch_uhvdb_metadata_tsv_gz,
             ch_uhvdb_protein_annotations_parquet,
             AAICLUSTER.out.faa_gz.mix(PYRODIGALGV.out.faa_gz),
+            FUNCTION.out.protein_faa_gz,
+            ch_uhvdb_proteins_faa_gz,
             TAXONOMY.out.ictv_hits_tsv_gz,
             CRISPRHOST.out.crispr_tsv_gz,
             PHISTHOST.out.phist_tsv_gz,

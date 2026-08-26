@@ -4,7 +4,6 @@ nf_core_version: 4.0.2
 
 lint:
   files_unchanged:
-    - CODE_OF_CONDUCT.md
     - assets/nf-core-toolkit_logo_light.png
     - docs/images/nf-core-toolkit_logo_light.png
     - docs/images/nf-core-toolkit_logo_dark.png
@@ -20,7 +19,6 @@ lint:
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
-    - CODE_OF_CONDUCT.md
     - assets/nf-core-toolkit_logo_light.png
     - docs/images/nf-core-toolkit_logo_light.png
     - docs/images/nf-core-toolkit_logo_dark.png

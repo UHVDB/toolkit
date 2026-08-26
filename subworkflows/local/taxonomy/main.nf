@@ -75,7 +75,7 @@ workflow TAXONOMY {
     // MODULE: Combine normalized protein similarity scores
     //
     FIND_CONCATENATE(
-        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.collect().map{ tsv_gzs -> [ [ id:'uhvbd_taxonomy' ], tsv_gzs ] }
+        UHVDB_NORMSCORE.out.tsv_gz.map{ _meta, tsv_gz -> [ tsv_gz ] }.collect().map{ tsv_gzs -> [ [ id:'uhvdb_taxonomy' ], tsv_gzs ] }
     )
 
     //

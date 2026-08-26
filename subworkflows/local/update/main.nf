@@ -1,5 +1,7 @@
 include { UHVDB_METADATA                } from '../../../modules/local/uhvdb/metadata/main'
+include { UHVDB_SYLPHTAX                } from '../../../modules/local/uhvdb/sylphtax/main'
 include { FIND_CONCATENATE as FIND_CONCATENATE_ICTVHITS } from '../../../modules/nf-core/find/concatenate/main'
+include { FIND_CONCATENATE as FIND_CONCATENATE_PROTEINS } from '../../../modules/nf-core/find/concatenate/main'
 include { UHVDB_CONCATCRISPR            } from '../../../modules/local/uhvdb/concatcrispr/main'
 include { UHVDB_CONCATPHIST             } from '../../../modules/local/uhvdb/concatphist/main'
 
@@ -26,9 +28,12 @@ workflow UPDATE {
     pharokka_tsv_gz
     phold_tsv_gz
     empathi_csv_gz
+    lifestyle_tsv_gz
     uhvdb_metadata_tsv_gz
-    uhvdb_protein_annotations_tsv_gz
+    uhvdb_protein_annotations
     protein_faa_gz
+    new_proteins_faa_gz
+    old_proteins_faa_gz
     ictv_hits_tsv_gz
     crispr_tsv_gz
     phist_tsv_gz
@@ -62,9 +67,32 @@ workflow UPDATE {
         pharokka_tsv_gz,
         phold_tsv_gz,
         empathi_csv_gz,
+        lifestyle_tsv_gz,
         uhvdb_metadata_tsv_gz,
-        uhvdb_protein_annotations_tsv_gz,
+        uhvdb_protein_annotations,
         protein_faa_gz.map { _meta, faa -> faa }.flatten().collect()
+    )
+
+    //
+    // MODULE: Build sylph-tax metadata for species representatives
+    //
+    UHVDB_SYLPHTAX(
+        UHVDB_METADATA.out.tsv_gz
+    )
+
+    //
+    // MODULE: Combine new unique proteins with existing UHVDB proteins
+    //
+    FIND_CONCATENATE_PROTEINS(
+        new_proteins_faa_gz
+            .map { _meta, faa_gz -> faa_gz }
+            .mix(
+                old_proteins_faa_gz.map { faa_gz ->
+                    faa_gz instanceof List ? faa_gz[0] : faa_gz
+                }
+            )
+            .collect()
+            .map { faa_gzs -> [ [ id: 'uhvdb_proteins' ], faa_gzs ] }
     )
 
     //
@@ -113,9 +141,11 @@ workflow UPDATE {
     )
 
     emit:
-    metadata_tsv_gz             = UHVDB_METADATA.out.tsv_gz
-    protein_annotations_tsv_gz  = UHVDB_METADATA.out.protein_annotations_tsv_gz
-    ictv_hits_tsv_gz            = FIND_CONCATENATE_ICTVHITS.out.file_out
-    crispr_parquet              = UHVDB_CONCATCRISPR.out.parquet
-    phist_parquet               = UHVDB_CONCATPHIST.out.parquet
+    metadata_tsv_gz                 = UHVDB_METADATA.out.tsv_gz
+    protein_annotations_parquet     = UHVDB_METADATA.out.protein_annotations_parquet
+    metadata_sylphtax_tsv_gz        = UHVDB_SYLPHTAX.out.tsv_gz
+    proteins_faa_gz                 = FIND_CONCATENATE_PROTEINS.out.file_out
+    ictv_hits_tsv_gz                = FIND_CONCATENATE_ICTVHITS.out.file_out
+    crispr_parquet                  = UHVDB_CONCATCRISPR.out.parquet
+    phist_parquet                   = UHVDB_CONCATPHIST.out.parquet
 }

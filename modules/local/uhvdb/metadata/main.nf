@@ -28,18 +28,20 @@ process UHVDB_METADATA {
     tuple val(meta18), path(pharokka_tsv_gz)
     tuple val(meta19), path(phold_tsv_gz)
     tuple val(meta20), path(empathi_csv_gz)
+    tuple val(meta21), path(lifestyle_tsv_gz)
     path(uhvdb_metadata_tsv_gz, stageAs: "uhvdb_old_metadata.tsv.gz")
     path(uhvdb_protein_annotations, stageAs: "uhvdb_old_protein_annotations")
     path(protein_faa_gz, stageAs: 'protein_faa/*', arity: '0..*')
 
     output:
-    path("uhvdb_metadata.tsv.gz")            , emit: tsv_gz
-    path("uhvdb_protein_annotations.tsv.gz") , emit: protein_annotations_tsv_gz
+    path("uhvdb_metadata.tsv.gz")                 , emit: tsv_gz
+    path("uhvdb_protein_annotations.parquet")     , emit: protein_annotations_parquet
 
     script:
     def uhvdb_metadata = uhvdb_metadata_tsv_gz && uhvdb_metadata_tsv_gz.size() > 0 ? "--uhvdb-metadata ${uhvdb_metadata_tsv_gz}" : ""
     def protein_annot_arg = uhvdb_protein_annotations && uhvdb_protein_annotations.size() > 0 ? "--uhvdb-protein-annotations ${uhvdb_protein_annotations}" : ""
     def protein_faa_arg = protein_faa_gz ? "--protein-faa ${protein_faa_gz}" : ""
+    def lifestyle_arg = lifestyle_tsv_gz && lifestyle_tsv_gz.size() > 0 ? "--lifestyle-tsv ${lifestyle_tsv_gz}" : ""
     """
     ### Build metadata and protein annotation tables
     uhvdb_build_metadata.py \\
@@ -63,20 +65,20 @@ process UHVDB_METADATA {
         --pharokka-tsv ${pharokka_tsv_gz} \\
         --phold-tsv ${phold_tsv_gz} \\
         --empathi-csv ${empathi_csv_gz} \\
+        ${lifestyle_arg} \\
         ${uhvdb_metadata} \\
         ${protein_annot_arg} \\
         ${protein_faa_arg} \\
         --output-metadata uhvdb_metadata.tsv \\
-        --output-protein-annotations uhvdb_protein_annotations.tsv
+        --output-protein-annotations uhvdb_protein_annotations.parquet
 
-    ### Compress (container has no gzip binary)
+    ### Compress metadata (container has no gzip binary)
     python -c "import gzip, shutil, os; src='uhvdb_metadata.tsv'; shutil.copyfileobj(open(src,'rb'), gzip.open(src+'.gz','wb')); os.unlink(src)"
-    python -c "import gzip, shutil, os; src='uhvdb_protein_annotations.tsv'; shutil.copyfileobj(open(src,'rb'), gzip.open(src+'.gz','wb')); os.unlink(src)"
     """
 
     stub:
     """
     python -c "import gzip; gzip.open('uhvdb_metadata.tsv.gz', 'wt').write('')"
-    python -c "import gzip; gzip.open('uhvdb_protein_annotations.tsv.gz', 'wt').write('')"
+    python -c "import polars as pl; pl.DataFrame({'protein_id':[], 'genomovar_rep':[], 'hash':[]}).write_parquet('uhvdb_protein_annotations.parquet')"
     """
 }

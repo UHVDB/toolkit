@@ -18,7 +18,7 @@
 
 **UHVDB/toolkit** is a Nextflow pipeline for updating and utilising the Updateable Human Virome Database (UHVDB).
 
-> UHVDB r6 is a database containing 1,155,490 unique viruses from human virome databases and human sample metagenomes metagenomes that have been:
+> UHVDB r6 is a database containing 1,155,490 unique viruses from human virome databases and human sample metagenomes that have been:
 > - filtered to high-quality viruses (>= 90% complete) 
 > - filtered to high-confidence viruses
 > - clustered
@@ -83,7 +83,7 @@ Below is a schematic overview of the UHVDB toolkit, followed by a brief explanat
 8. TAXONOMY
 > - ICTV sequences are downloaded using [ICTVtaxablast](https://github.com/ICTV-Virus-Knowledgebase/ICTVtaxablast) and ORFs are predicted with pyrodigal-gv.
 > - ORFs are predicted from UHVDB genomovar representatives and aligned to ICTV ORFs using DIAMOND. Protein similarity values are calculated as described in the AAICLUSTER subworkflow.
-> - The taxonomy of the ICTV genome with the highest protein similarity is assigned to each genomovar representative if the protein similarity.
+> - The taxonomy of the ICTV genome with the highest protein similarity is assigned to each genomovar representative when Class labels agree between geNomad and the ICTV hit.
 9. CRISPRHOST
 > - CRISPR spacers from SPIRE and proGenomes3 (hosted on Kopah S3) are aligned to UHVDB genomovar representatives using [SpacerExtractor](https://code.jgi.doe.gov/SRoux/spacerextractor) requiring <= 1 mismatch across the length of the spacer.
 > - Then, the lowest host rank having >= 70% agreement across all CRISPR connections is identified.
@@ -97,7 +97,7 @@ Below is a schematic overview of the UHVDB toolkit, followed by a brief explanat
 12. LIFESTYLE
 > - Unique sequences are designated as integrated or unintegrated using geNomad and CheckV. Then, [BACPHLIP](https://github.com/adamhockenberry/bacphlip) is run on all genomovar representatives. Finally, each genomovar representative is analysed for the presence of an integration-related PHROG/EmPATHi protein.
 13. UPDATE
-> - Outputs from all subworkflows and the prior UHVDB release are combined into merged metadata and protein annotation tables, plus concatenated ICTV, CRISPR, and PHIST hit tables, and published to `<outdir>/uhvdb/`.
+> - Outputs from all subworkflows and the prior UHVDB release are combined into merged metadata, protein annotations (parquet), sylph-tax metadata, proteins FASTA, GANI / protein-similarity tables, plus concatenated ICTV, CRISPR, and PHIST hit tables, and published to `<outdir>/uhvdb/`.
 
 </details>
 
@@ -154,7 +154,7 @@ nextflow run UHVDB/toolkit -profile <singularity/docker>,test_analyze -latest --
 ```
 
 ### 4. View the primary outputs
-(`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.mpa`)
+(`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.sylphmpa`)
 
 #### Fields:
 * `clade_name`: the taxonomic rank (or genome if t__*) depicted in the row.
@@ -180,7 +180,9 @@ d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g_
 Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	0.685109617048556	85% precision
 ```
 
-### *OPTIONAL:. Run the `test_update` profile to test adding viruses to UHVDB. (Note: the downloads and processes for this test require > 100GB disk a significant amount of wall time)*
+### Optional: Run the `test_update` profile to test adding viruses to UHVDB
+
+> Note: the downloads and processes for this test require >100 GB disk and a significant amount of wall time.
 
 ```bash
 nextflow run UHVDB/toolkit -profile singularity,test_update -latest --outdir <OUTDIR>
@@ -204,7 +206,7 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 >
 > ```csv
 > sample,source_db,source_type,body_site,group,acc,fastq_1,fastq_2,fna
-> uhgv_test_fna,UHGV,Database,Gut,,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/main/assets/test_datasets/fnas/uhgv_hq_plus_test_2.fna.gz
+> uhgv_test_fna,UHGV,Database,Gut,,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/master/assets/test_datasets/fna/uhgv_hq_plus_test.fna.gz
 > ```
 >
 > However, for mining thousands of metagenomes, things can get much more complicated. These [example scripts](assets/scripts/mining-setup-scripts.ipynb) can be used as inspiration, and the samplesheet will likely look something like this:
@@ -244,12 +246,17 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 > **If you have already run the pipeline, re-use the existing `--dbdir`. It will save a lot of time and about 300 GB of disk.**
 
 4. Ensure that all necessary output files have been created.
-> `--run_update` currently publishes the following files to `<outdir>/uhvdb/`:
+> `--run_update` currently publishes the following files to `<outdir>/uhvdb/` (always as copies):
 > 1. `uhvdb_metadata.tsv.gz`: merged sequence metadata for the updated database.
-> 2. `uhvdb_protein_annotations.tsv.gz`: merged per-protein annotations.
-> 3. `uhvdb_ictv_hits.tsv.gz`: combined new and existing ICTV protein-similarity hits.
-> 4. `uhvdb_crispr.parquet`: combined new and existing CRISPR spacer hits.
-> 5. `uhvdb_phist.parquet`: combined new and existing PHIST host hits.
+> 2. `uhvdb_protein_annotations.parquet`: merged per-protein annotations.
+> 3. `uhvdb_metadata_sylphtax.tsv.gz`: species-representative sylph-tax lineages (virus + host).
+> 4. `uhvdb_proteins.faa.gz`: concatenated new unique + existing UHVDB proteins.
+> 5. `uhvdb_genomovars_gani.tsv.gz`: combined genomovar GANI edges (new + existing).
+> 6. `uhvdb_species_gani.tsv.gz`: combined species GANI edges (new + existing).
+> 7. `uhvdb_proteinsimilarity.tsv.gz`: combined protein-similarity / normscore edges (new + existing).
+> 8. `uhvdb_ictv_hits.tsv.gz`: combined new and existing ICTV protein-similarity hits.
+> 9. `uhvdb_crispr.parquet`: combined new and existing CRISPR spacer hits.
+> 10. `uhvdb_phist.parquet`: combined new and existing PHIST host hits.
 >
 > Intermediate output files created by this pipeline are stored under `<outdir>/` by process name.
 
@@ -305,7 +312,7 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 > 6. label viruses with the probability that the sequence is an uninducible prophage
 
 4. Analyse the outputs
-> After the pipeline has completed the final outputs will be stored here: (`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.mpa`)
+> After the pipeline has completed the final outputs will be stored here: (`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.sylphmpa`)
 
 #### Fields:
 * `clade_name`: the taxonomic rank (or genome if t__*) depicted in the row.
@@ -361,9 +368,16 @@ Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|
     - Presence of a virus species (or genomovar) in a highly-enriched dataset (https://doi.org/10.1101/2024.02.19.580813)
 - Identify CRISPR spacers in all mOTUs, SPIRE, HROM, HRGM2 genomes
 - Make pipeline adhere to nf-core guidelines as closely as possible
-- Add nf-tests to pipeline
+- Restore GitHub Actions nf-test and expand local module tests
 
 </details>
+
+
+## Known limitations
+
+- MultiQC software-version collection is incomplete (process versions are not fully wired yet).
+- `bin/phist` and `bin/xsra` are prebuilt Linux ELF binaries (typically x86_64); replace or rebuild them for other architectures.
+- GitHub Actions nf-test is temporarily disabled pending CI rework.
 
 ## Credits
 
@@ -375,7 +389,7 @@ If you would like to contribute to this database/pipeline, please join the [Slac
 
 ## Citations
 
-If you use UHVDB/toolkit for your analysis, please cite it using the following doi: [10.64898/2026.05.01.722327](https://doi.org/10.64898/2026.05.01.722327).
+If you use UHVDB/toolkit for your analysis, please cite the [preprint](https://doi.org/10.64898/2026.05.01.722327) and the UHVDB Zenodo deposit [10.5281/zenodo.19831611](https://doi.org/10.5281/zenodo.19831611). The public repository is [UHVDB/toolkit](https://github.com/UHVDB/toolkit) (some development remotes may still be named `toolkit2`).
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

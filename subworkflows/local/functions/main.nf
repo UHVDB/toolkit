@@ -55,25 +55,6 @@ def rmEmptyTsvs(ch_tsvs) {
 }
 
 //
-// Count the number of sequences in a channel of fasta files
-//
-def countFastAs(ch_fastas) {
-    // if not stub run, count the number of sequences in the fasta files
-    if (!workflow.stubRun) {
-        def ch_fastas_counts = ch_fastas
-            .map { _meta, fasta ->
-                file(fasta).countFasta( limit: params.min_checkv_update )
-            }
-            .sum()
-        return ch_fastas_counts
-    }
-    // if stub run, return the minimum checkv update
-    else {
-        return channel.value(params.min_checkv_update)
-    }
-}
-
-//
 // Extract the number before the file extension
 //
 def extractDigitBeforeExtension(String path) {

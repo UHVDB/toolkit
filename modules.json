@@ -5,44 +5,9 @@
         "https://github.com/nf-core/modules.git": {
             "modules": {
                 "nf-core": {
-                    "aria2": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "checkv/downloaddatabase": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "checkv/endtoend": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
                     "checkv/updatedatabase": {
                         "branch": "master",
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "coverm/contig": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "deacon/filter": {
-                        "branch": "master",
-                        "git_sha": "9b261a459473bc8e2d830bfc626f480c0733f4fe",
                         "installed_by": [
                             "modules"
                         ]
@@ -61,98 +26,7 @@
                             "modules"
                         ]
                     },
-                    "fastp": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "fastqc": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
                     "find/concatenate": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "foldseek/createdb": {
-                        "branch": "master",
-                        "git_sha": "db00ae30675af471e9915861c58a7e6847d1f4be",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "foldseek/easysearch": {
-                        "branch": "master",
-                        "git_sha": "db00ae30675af471e9915861c58a7e6847d1f4be",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "genomad/download": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "genomad/endtoend": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "hmmer/hmmsearch": {
-                        "branch": "master",
-                        "git_sha": "f2bed902e13076698e7d59d1fedf5c083f6f17c0",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "instrain/compare": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "instrain/profile": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "interproscan": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "iphop/download": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "iphop/predict": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "megahit": {
                         "branch": "master",
                         "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
                         "installed_by": [
@@ -162,76 +36,6 @@
                     "multiqc": {
                         "branch": "master",
                         "git_sha": "008f9d3e61209bf995edac3ba531f54e269e1215",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "pharokka/installdatabases": {
-                        "branch": "master",
-                        "git_sha": "b73338eca19d798eb0ef6ed112ef4d27a30d2871",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "pharokka/pharokka": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "seqkit/grep": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "seqkit/replace": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "seqkit/seq": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "seqkit/split2": {
-                        "branch": "master",
-                        "git_sha": "f03a30b46ebe59ba12b79115f05ab545d5ca2e5e",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "spring/compress": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "spring/decompress": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "sylph/profile": {
-                        "branch": "master",
-                        "git_sha": "ce985fd8f624817dcf50165cbc82dc78251675da",
-                        "installed_by": [
-                            "modules"
-                        ]
-                    },
-                    "sylph/sketch": {
-                        "branch": "master",
-                        "git_sha": "ce985fd8f624817dcf50165cbc82dc78251675da",
                         "installed_by": [
                             "modules"
                         ]
@@ -256,42 +60,11 @@
                         "installed_by": [
                             "modules"
                         ]
-                    },
-                    "vclust/align": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "fasta_vclust_prefilter_align_cluster",
-                            "modules"
-                        ]
-                    },
-                    "vclust/cluster": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "fasta_vclust_prefilter_align_cluster",
-                            "modules"
-                        ]
-                    },
-                    "vclust/prefilter": {
-                        "branch": "master",
-                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
-                        "installed_by": [
-                            "fasta_vclust_prefilter_align_cluster",
-                            "modules"
-                        ]
                     }
                 }
             },
             "subworkflows": {
                 "nf-core": {
-                    "fasta_vclust_prefilter_align_cluster": {
-                        "branch": "master",
-                        "git_sha": "89ed2e7da9422fa11e2589eaa1847ab6228a27c5",
-                        "installed_by": [
-                            "subworkflows"
-                        ]
-                    },
                     "utils_nextflow_pipeline": {
                         "branch": "master",
                         "git_sha": "05954dab2ff481bcb999f24455da29a5828af08d",

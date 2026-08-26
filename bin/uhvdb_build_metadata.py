@@ -57,6 +57,11 @@ def parse_args(args=None):
     parser.add_argument("--pharokka-tsv", required=True, help="Combined Pharokka TSV.")
     parser.add_argument("--phold-tsv", required=True, help="Combined Phold TSV.")
     parser.add_argument("--empathi-csv", required=True, help="Combined Empathi CSV.")
+    parser.add_argument(
+        "--lifestyle-tsv",
+        required=False,
+        help="Lifestyle TSV from UHVDB_LIFESTYLE (BACPHLIP virulent/temperate and integration counts).",
+    )
     parser.add_argument("--uhvdb-metadata", required=False, help="Existing UHVDB metadata TSV.")
     parser.add_argument(
         "--uhvdb-protein-annotations",
@@ -67,7 +72,7 @@ def parse_args(args=None):
     parser.add_argument(
         "--output-protein-annotations",
         required=True,
-        help="Output protein annotations TSV.",
+        help="Output protein annotations parquet (or TSV if the path ends in .tsv/.tsv.gz).",
     )
     parser.add_argument(
         "--protein-faa",
@@ -354,6 +359,42 @@ def add_taxonomy(metadata_df, args, existing):
     return metadata_df.join(taxonomy_df2, left_on="genomovar_rep", right_on="uhvdb_id", how="left")
 
 
+LIFESTYLE_COLS = [
+    "uhvdb_id",
+    "virulent",
+    "temperate",
+    "phrog_integrases",
+    "phrog_integration_excision",
+    "empathi_integration",
+]
+
+
+def add_lifestyle(metadata_df, args, existing):
+    """Left-join BACPHLIP / lifestyle columns onto metadata by genomovar_rep."""
+    lifestyle = _read_tsv(args.lifestyle_tsv) if args.lifestyle_tsv else None
+    if lifestyle is None:
+        lifestyle_df1 = pl.DataFrame(schema={col: pl.String for col in LIFESTYLE_COLS})
+    else:
+        lifestyle_df1 = _select_cols(lifestyle, LIFESTYLE_COLS)
+        if "uhvdb_id" not in lifestyle_df1.columns:
+            return metadata_df
+        lifestyle_df1 = _unique_uhvdb_id(lifestyle_df1)
+
+    frames = [lifestyle_df1]
+    existing_life = _existing_annotation_rows(
+        existing,
+        lifestyle_df1.columns,
+        set(metadata_df["genomovar_rep"].drop_nulls()),
+        set(lifestyle_df1["uhvdb_id"]) if "uhvdb_id" in lifestyle_df1.columns else set(),
+    )
+    if existing_life is not None and not existing_life.is_empty():
+        frames.append(existing_life)
+    lifestyle_df2 = _unique_uhvdb_id(pl.concat(frames, how="diagonal_relaxed"))
+    if lifestyle_df2.is_empty() or "uhvdb_id" not in lifestyle_df2.columns:
+        return metadata_df
+    return metadata_df.join(lifestyle_df2, left_on="genomovar_rep", right_on="uhvdb_id", how="left")
+
+
 def add_host_predictions(metadata_df, args, existing):
     crisprhost = _read_tsv(args.crisprhost_tsv)
     if crisprhost is None:
@@ -486,6 +527,15 @@ def _empty_annot(cols):
     return pl.DataFrame(schema={col: pl.String for col in cols})
 
 
+def _write_protein_annotations(df, path):
+    """Write protein annotations as parquet by default; TSV if path ends in .tsv/.tsv.gz."""
+    lower = path.lower()
+    if lower.endswith(".tsv") or lower.endswith(".tsv.gz"):
+        df.write_csv(path, separator="\t")
+        return
+    df.write_parquet(path, compression="zstd")
+
+
 def add_protein_annotations(metadata_df, args, existing_prot):
     prothash_frames = []
     prothash = _read_tsv(args.proteinhash_tsv)
@@ -495,7 +545,7 @@ def add_protein_annotations(metadata_df, args, existing_prot):
         prothash_frames.append(_select_cols(existing_prot, ["protein_id", "hash"]))
     if not prothash_frames:
         metadata_df.write_csv(args.output_metadata, separator="\t")
-        pl.DataFrame().write_csv(args.output_protein_annotations, separator="\t")
+        _write_protein_annotations(pl.DataFrame(), args.output_protein_annotations)
         return
     current_reps = set(metadata_df["genomovar_rep"].drop_nulls().to_list())
     prothash_df = (
@@ -693,7 +743,7 @@ def add_protein_annotations(metadata_df, args, existing_prot):
         pl.concat(frames, how="diagonal_relaxed")
         .unique("protein_id", keep="first")
     )
-    combined_protein_annotations_df2.write_csv(args.output_protein_annotations, separator="\t")
+    _write_protein_annotations(combined_protein_annotations_df2, args.output_protein_annotations)
 
     combined_protein_annotations_df3 = (
         combined_protein_annotations_df2
@@ -725,6 +775,7 @@ def main(args=None):
     existing_prot = _read_table(args.uhvdb_protein_annotations) if args.uhvdb_protein_annotations else None
     metadata_df = create_base_metadata(args)
     metadata_df = add_taxonomy(metadata_df, args, existing)
+    metadata_df = add_lifestyle(metadata_df, args, existing)
     metadata_df = add_host_predictions(metadata_df, args, existing)
     add_protein_annotations(metadata_df, args, existing_prot)
 

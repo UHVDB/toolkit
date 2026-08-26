@@ -2,34 +2,14 @@
 
 ## Introduction
 
-This document describes the output produced by the pipeline. Most of the plots are taken from the MultiQC report, which summarises results at the end of the pipeline.
-
-The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
-
-<!-- TODO nf-core: Write this documentation describing your workflow's output -->
+This document describes the output produced by the pipeline. Paths are relative to the top-level results directory (`--outdir`).
 
 ## Pipeline overview
 
-The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes data using the following steps:
-
-- [FastQC](#fastqc) - Raw read QC
-- [UHVDB update](#uhvdb-update) - Merged metadata and combined hit tables from `--run_update`
-- [Reference analyse](#reference-analyse) - Metagenome profiling and Caudoviricetes inactive-virus scores from `--run_analyze`
-- [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
-- [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
-
-### FastQC
-
-<details markdown="1">
-<summary>Output files</summary>
-
-- `fastqc/`
-  - `*_fastqc.html`: FastQC report containing quality metrics.
-  - `*_fastqc.zip`: Zip archive containing the FastQC report, tab-delimited data file and plot images.
-
-</details>
-
-[FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) gives general quality metrics about your sequenced reads. It provides information about the quality score distribution across your reads, per base sequence content (%A/T/G/C), adapter contamination and overrepresented sequences. For further reading and documentation see the [FastQC help pages](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/).
+- [UHVDB update](#uhvdb-update) — merged metadata and release tables from `--run_update`
+- [Reference analyse](#reference-analyse) — metagenome profiling and activity scores from `--run_analyze`
+- [MultiQC](#multiqc) — aggregate report
+- [Pipeline information](#pipeline-information) — Nextflow and pipeline run reports
 
 ### UHVDB update
 
@@ -37,15 +17,19 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 <summary>Output files</summary>
 
 - `uhvdb/`
-  - `uhvdb_metadata.tsv.gz`: merged sequence metadata for the updated database.
-  - `uhvdb_protein_annotations.tsv.gz`: merged per-protein annotations.
-  - `uhvdb_ictv_hits.tsv.gz`: combined new and existing ICTV protein-similarity hits.
-  - `uhvdb_crispr.parquet`: combined new and existing CRISPR spacer hits.
-  - `uhvdb_phist.parquet`: combined new and existing PHIST host hits.
+  - `uhvdb_metadata.tsv.gz`: merged sequence metadata for the updated database, including BACPHLIP `virulent` / `temperate` scores and integration-related lifestyle columns when lifestyle annotation ran (`phrog_integrases`, `phrog_integration_excision`, `empathi_integration`).
+  - `uhvdb_metadata_sylphtax.tsv.gz`: species-representative sylph-tax lineages (virus + host).
+  - `uhvdb_protein_annotations.parquet`: merged per-protein annotations (parquet / zstd).
+  - `uhvdb_proteins.faa.gz`: concatenated new unique + existing UHVDB proteins (when produced).
+  - `uhvdb_genomovars_gani.tsv.gz` / `uhvdb_species_gani.tsv.gz`: combined GANI edges (when produced).
+  - `uhvdb_proteinsimilarity.tsv.gz`: combined protein-similarity / normscore edges (when produced).
+  - `uhvdb_ictv_hits.tsv.gz`: combined ICTV protein-similarity hits.
+  - `uhvdb_crispr.parquet`: combined CRISPR spacer hits.
+  - `uhvdb_phist.parquet`: combined PHIST host hits.
 
 </details>
 
-These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and PHIST tables from `UHVDB_UPDATEDOWNLOAD` are concatenated with the new results when those files are present in the downloaded update prefix.
+These files are produced when `--run_update` is set. Intermediate process directories are also published under `<outdir>/` by process name (default `publish_dir_mode` is `symlink`; release files under `uhvdb/` always use `copy`).
 
 ### Reference analyse
 
@@ -53,14 +37,14 @@ These files are produced when `--run_update` is set. Existing ICTV, CRISPR, and 
 <summary>Output files</summary>
 
 - `uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/`
-  - `*.sylphmpa`: per-sample sylph-tax profile with `virus_lifestyle`, `pth_ratio`, `uninducible_probability`, and `uninducible_tier` appended (alongside renamed base columns `ani`, `coverage`, and `virus_host`). Virus lifestyle (Temperate / Virulent) is filled for virus species rows. PTH ratio is filled when a predicted host is co-detected. Uninducible probability and tier are filled for Caudoviricetes species scored by the classifier; other rows are `NA`.
+  - `*.sylphmpa`: per-sample sylph-tax profile with `virus_lifestyle`, `pth_ratio`, `uninducible_probability`, and `uninducible_tier` appended (alongside renamed base columns `ani`, `coverage`, and `virus_host`).
   - `*_reference_activity.tsv.gz`: per-sample inactive-virus scores for detected Caudoviricetes species representatives.
 
 </details>
 
-These files are produced when `--run_analyze` is set and CoverM plus gene-coverage tables exist for a sample. The classifier is the figure_s15 Caudoviricetes story-20 random-forest model (`assets/models/phage_activity_model_full.joblib`). Class 1 is uninducible / inactive (bulk-detected, not enriched). `predicted_uninducible` is 1 when `predicted_inactive_probability` is at least the model's 95% precision threshold. `inactive_confidence_tier` is 95% precision / 90% precision / 85% precision / No prediction from the corresponding out-of-fold precision thresholds. Non-Caudoviricetes detections are not scored.
+These files are produced when `--run_analyze` is set and CoverM plus gene-coverage tables exist for a sample. The classifier is the figure_s15 Caudoviricetes story-20 random-forest model (`assets/models/phage_activity_model_full.joblib`). Class 1 is uninducible / inactive (bulk-detected, not enriched).
 
-Lifestyle is Temperate when any genomovar in the species is integrated, has BACPHLIP temperate probability > 0.5, or carries an integration-related PHROG/Empathi gene; otherwise Virulent. PTH ratio is virus relative abundance divided by co-detected host abundance, using a species then genus-singleton then family-singleton cascade.
+Lifestyle is Temperate when any genomovar in the species is integrated, has BACPHLIP temperate probability > 0.5, or carries an integration-related PHROG/Empathi gene; otherwise Virulent. PTH ratio is virus relative abundance divided by co-detected host abundance.
 
 ### MultiQC
 
@@ -68,15 +52,13 @@ Lifestyle is Temperate when any genomovar in the species is integrated, has BACP
 <summary>Output files</summary>
 
 - `multiqc/`
-  - `multiqc_report.html`: a standalone HTML file that can be viewed in your web browser.
-  - `multiqc_data/`: directory containing parsed statistics from the different tools used in the pipeline.
-  - `multiqc_plots/`: directory containing static images from the report in various formats.
+  - `multiqc_report.html`: standalone HTML report.
+  - `multiqc_data/`: parsed statistics.
+  - `multiqc_plots/`: static images.
 
 </details>
 
-[MultiQC](http://multiqc.info) is a visualization tool that generates a single HTML report summarising all samples in your project. Most of the pipeline QC results are visualised in the report and further statistics are available in the report data directory.
-
-Results generated by MultiQC collate pipeline QC from supported tools e.g. FastQC. The pipeline has special steps which also allow the software versions to be reported in the MultiQC output for future traceability. For more information about how to use MultiQC reports, see <http://multiqc.info>.
+MultiQC summarises available QC and software metadata. Software version collection is currently incomplete (known limitation).
 
 ### Pipeline information
 
@@ -84,11 +66,8 @@ Results generated by MultiQC collate pipeline QC from supported tools e.g. FastQ
 <summary>Output files</summary>
 
 - `pipeline_info/`
-  - Reports generated by Nextflow: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.dot`/`pipeline_dag.svg`.
-  - Reports generated by the pipeline: `pipeline_report.html`, `pipeline_report.txt` and `software_versions.yml`. The `pipeline_report*` files will only be present if the `--email` / `--email_on_fail` parameter's are used when running the pipeline.
-  - Reformatted samplesheet files used as input to the pipeline: `samplesheet.valid.csv`.
-  - Parameters used by the pipeline run: `params.json`.
+  - Nextflow reports: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt`, `pipeline_dag.*`.
+  - Pipeline reports when `--email` / `--email_on_fail` is set.
+  - `samplesheet.valid.csv`, `params.json`, and software versions YAML when produced.
 
 </details>
-
-[Nextflow](https://www.nextflow.io/docs/latest/tracing.html) provides excellent functionality for generating various reports relevant to the running and execution of the pipeline. This will allow you to troubleshoot errors with the running of the pipeline, and also provide you with other information such as launch commands, run times and resource usage.

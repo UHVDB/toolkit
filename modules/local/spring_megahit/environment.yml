@@ -1,6 +1,0 @@
-channels:
-- conda-forge
-- bioconda
-dependencies:
-- bioconda::megahit=1.2.9
-- bioconda::spring=1.1.1

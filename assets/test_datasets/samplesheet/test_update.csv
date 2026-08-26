@@ -1,4 +1,4 @@
 sample,source_db,source_type,body_site,group,acc,fastq_1,fastq_2,fna
-uhgv_test_fna,UHGV,Database,Gut,,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/main/assets/test_datasets/fnas/uhgv_hq_plus_test_2.fna.gz
+uhgv_test_fna,UHGV,Database,Gut,,,,,https://github.com/UHVDB/toolkit/raw/refs/heads/master/assets/test_datasets/fna/uhgv_hq_plus_test.fna.gz
 samplesheet_gcode15,,Assembly,Urogenital,group3,,,,https://raw.githubusercontent.com/althonos/pyrodigal-gv/refs/heads/main/pyrodigal_gv/tests/phage_Topaz.fna
 samplesheet_pe_fastq,,Assembly,,group2,,https://raw.githubusercontent.com/nf-core/test-datasets/refs/heads/modules/data/genomics/sarscov2/illumina/fastq/test_1.fastq.gz,https://raw.githubusercontent.com/nf-core/test-datasets/refs/heads/modules/data/genomics/sarscov2/illumina/fastq/test_2.fastq.gz,

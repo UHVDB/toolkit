@@ -117,22 +117,6 @@ def main(args=None):
             ])
     )
 
-    # #region agent log
-    _dbg_path = "/mmfs1/gscratch/pedslabs_hoffman/carsonjm/CFPhageome/repos/UHVDB/toolkit2/.cursor/debug-0661f2.log"
-    def _dbg(hypothesis_id, location, message, data, run_id="post-fix-class"):
-        import json, time
-        with open(_dbg_path, "a") as _f:
-            _f.write(json.dumps({
-                "sessionId": "0661f2",
-                "runId": run_id,
-                "hypothesisId": hypothesis_id,
-                "location": location,
-                "message": message,
-                "data": data,
-                "timestamp": int(time.time() * 1000),
-            }) + "\n")
-    # #endregion
-
     # load normscore tsv; refs are genome IDs (ACCESSION[.version] after pyrodigal) or legacy lcl| protein IDs
     normscore = (
         pl.read_csv(args.normscore_tsv, separator='\t', null_values=["NA"], has_header=False, new_columns=['uhvdb_id', 'ref', 'normscore'])
@@ -172,15 +156,6 @@ def main(args=None):
         classify
             .join(ictv_class, on=['uhvdb_id', 'Class'], how='left')
     )
-
-    # #region agent log
-    _dbg("F", "uhvdb_taxonomy.py:result", "Ref population after Malgrandaviricetes synonym", {
-        "result_rows": result.height,
-        "ref_nonnull": result.filter(pl.col('ref').is_not_null()).height,
-        "microviricetes_with_ref": result.filter((pl.col('Class') == 'Microviricetes') & pl.col('ref').is_not_null()).height,
-        "class_counts_with_ref": result.filter(pl.col('ref').is_not_null())['Class'].value_counts().head(10).to_dicts(),
-    })
-    # #endregion
 
     result.write_csv(args.output, separator='\t')
 

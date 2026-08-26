@@ -27,9 +27,9 @@
             },
             "body_site": {
                 "type": "string",
-                "pattern": "^(Gut|Airways|Skin|Urogenital|Other)$",
+                "pattern": "^(Gut|Airways|Skin|Urogenital|Blood|Other)$",
                 "meta": ["body_site"],
-                "errorMessage": "Body site must be one of the following: Gut, Airways, Skin, Urogenital, Other."
+                "errorMessage": "Body site must be one of the following: Gut, Airways, Skin, Urogenital, Blood, Other."
             },
             "project": {
                 "type": "string",
