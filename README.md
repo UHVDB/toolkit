@@ -345,39 +345,38 @@ Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|
 <details>
 <summary><h3>Low-hanging fruit (days - weeks)</h3></summary>
 
-- Add detected bacterial species to CoverM alignment
-- Add inStrain profile and inStrain compare within co-assembly groups
+- Download and include detected bacterial species in CoverM alignment
+- Add inStrain profile and inStrain compare within co-assembly groups to evaluate microdiversity
 - Add Pilea to estimate bacterial growth rate via peak-to-trough (PTR)
 - Add iPHoP for genomovar reps not having a PHIST or spacer host prediction
-- Also use vCONTACT3 for taxonomic classification
 - Add DGRscan (ideally a more efficient Python 3 version)
-- Add DefenseFinder and dbAPIs to protein annotations
-- Investigate genomovar-level profiling (use genomovar reps in sylph/CoverM instead of species reps)
-- Update bacterial database to include HRGM2, HROM, and SPIRE genomes
-    - Update GTDB taxonomic assignments to r232 with skani
+- Add DefenseFinder/anti-defensefinder and dbAPIs to protein annotations
+- Update GTDB taxonomic assignments to r232
+- Combine additional modules to reduce number of jobs/intermediate file disk space
+- Implement targeted virus assembly (create prophage masked bacterial database, remove bacterial reads, assemble only remaining reads)
+- Mine novel metagenomes/metatranscriptomes for novel viruses
 
 </details>
 
 <details>
 <summary><h3>Ambitious goals (weeks - months)</h3></summary>
 
-- Add RNA virus specific analyses to workflow
+- Investigate genomovar-level profiling (more accurate representation of genome contained a metagenome)
+- Investigate RNA virus specific analyses (RdRP analyses, improved ORF prediction, improved functional annotation)
 - Investigate other signals of virus activity
-    - Number of virus hallmarks/structural genes and their dN/dS relative to known active viruses (https://www.nature.com/articles/s41586-025-09614-7)
+    - dN/dS relative to known active viruses (https://www.nature.com/articles/s41586-025-09614-7)
     - Presence of CRISPR spacer in short reads targeting UHVDB virus or assembled virus (https://doi.org/10.1101/2025.06.12.659409)
-    - Presence of a virus species (or genomovar) in a highly-enriched dataset (https://doi.org/10.1101/2024.02.19.580813)
-- Identify CRISPR spacers in all mOTUs, SPIRE, HROM, HRGM2 genomes
+    - Presence of a virus species in a highly-enriched dataset (https://doi.org/10.1101/2024.02.19.580813)
+    - Include assembly-based signals (mVIRs, propagate, assembled DTRs)
+- Update bacterial database to include HRGM2, HROM, and SPIRE and be dereplicated (gempsarcl)
+- Identify CRISPR spacers in updated, dereplicated database
 - Make pipeline adhere to nf-core guidelines as closely as possible
-- Restore GitHub Actions nf-test and expand local module tests
+- Add nf-tests to modules, subworkflows, workflows, and pipeline
+- Implement GitHub Actions
+- Mine additional MGEs (plasmids, phage satellites, phage-plasmids... etc)
 
 </details>
 
-
-## Known limitations
-
-- MultiQC software-version collection is incomplete (process versions are not fully wired yet).
-- `bin/phist` and `bin/xsra` are prebuilt Linux ELF binaries (typically x86_64); replace or rebuild them for other architectures.
-- GitHub Actions nf-test is temporarily disabled pending CI rework.
 
 ## Credits
 
