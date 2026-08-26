@@ -150,7 +150,7 @@ cd <target_dir>
 
 # run the pipeline
 # `singularity/docker` can be replaced with an institutional profile (i.e. `uw_hyak`)
-nextflow run UHVDB/toolkit -profile <singularity/docker>,test_analyze -latest --outdir <OUTDIR>
+nextflow run UHVDB/toolkit -profile <conda/mamba/singularity/docker>,test_analyze -latest --outdir <OUTDIR>
 ```
 
 ### 4. View the primary outputs
@@ -182,7 +182,7 @@ Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|
 
 ### Optional: Run the `test_update` profile to test adding viruses to UHVDB
 
-> Note: the downloads and processes for this test require >100 GB disk and a significant amount of wall time.
+> Note: the downloads and processes for this test require >100 GB disk and a significant amount of wall time. We are currently working to create smaller test databases for the tools used by this workflow.
 
 ```bash
 nextflow run UHVDB/toolkit -profile singularity,test_update -latest --outdir <OUTDIR>
