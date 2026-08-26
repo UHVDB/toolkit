@@ -369,7 +369,8 @@ Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|
     - Presence of a virus species in a highly-enriched dataset (https://doi.org/10.1101/2024.02.19.580813)
     - Include assembly-based signals (mVIRs, propagate, assembled DTRs)
 - Update bacterial database to include HRGM2, HROM, and SPIRE and be dereplicated (gempsarcl)
-- Identify CRISPR spacers in updated, dereplicated database
+- Identify CRISPR spacers in updated, dereplicated bacterial database
+- Mine prophages from dereplicated bacterial database (reduce search spacer for PHIST)
 - Make pipeline adhere to nf-core guidelines as closely as possible
 - Add nf-tests to modules, subworkflows, workflows, and pipeline
 - Implement GitHub Actions
