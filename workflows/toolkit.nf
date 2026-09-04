@@ -4,15 +4,15 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { UHVDB_ANALYZEDOWNLOAD         } from '../modules/local/uhvdb/analyzedownload'
-include { UHVDB_UPDATEDOWNLOAD          } from '../modules/local/uhvdb/updatedownload'
-include { DEACON_INDEXFETCH             } from '../modules/local/deacon/indexfetch'
-include { ASSEMBLY                      } from '../subworkflows/local/assembly'
-include { CLASSIFY                      } from '../subworkflows/local/classify'
-include { HQFILTER                      } from '../subworkflows/local/hqfilter'
-include { DEREPLICATE                   } from '../subworkflows/local/dereplicate'
-include { ANICLUSTER                    } from '../subworkflows/local/anicluster'
-include { AAICLUSTER                    } from '../subworkflows/local/aaicluster'
+include { UHVDB_ANALYZEDOWNLOAD         } from '../modules/local/uhvdb/analyzedownload/main'
+include { UHVDB_UPDATEDOWNLOAD          } from '../modules/local/uhvdb/updatedownload/main'
+include { DEACON_INDEXFETCH             } from '../modules/local/deacon/indexfetch/main'
+include { ASSEMBLY                      } from '../subworkflows/local/assembly/main'
+include { CLASSIFY                      } from '../subworkflows/local/classify/main'
+include { HQFILTER                      } from '../subworkflows/local/hqfilter/main'
+include { DEREPLICATE                   } from '../subworkflows/local/dereplicate/main'
+include { ANICLUSTER                    } from '../subworkflows/local/anicluster/main'
+include { AAICLUSTER                    } from '../subworkflows/local/aaicluster/main'
 include { rmEmptyFastAs; add_split      } from '../subworkflows/local/functions/main'
 include { CSVTK_SEQKIT                  } from '../modules/local/csvtk_seqkit/main'
 include { SEQKIT_SPLIT2                 } from '../modules/local/seqkit/split2/main'
@@ -23,7 +23,10 @@ include { PHISTHOST                     } from '../subworkflows/local/phisthost/
 include { FUNCTION                      } from '../subworkflows/local/function/main'
 include { LIFESTYLE                     } from '../subworkflows/local/lifestyle/main'
 include { UPDATE                        } from '../subworkflows/local/update/main'
-include { REFERENCEANALYZE              } from '../subworkflows/local/referenceanalyze'
+include { CSVTK_SEQKIT as CSVTK_SEQKIT_SPECIES  } from '../modules/local/csvtk_seqkit/main'
+include { SYLPH_SKETCHGENOMES           } from '../modules/nf-core/sylph/sketchgenomes/main'
+include { REFERENCEANALYZE              } from '../subworkflows/local/referenceanalyze/main'
+include { ASSEMBLYANALYZE               } from '../subworkflows/local/assemblyanalyze/main'
 include { paramsSummaryMap              } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc          } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML        } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -69,7 +72,7 @@ workflow TOOLKIT {
     ch_deacon_idx = DEACON_INDEXFETCH.out.idx.first()
 
 
-    if ( params.run_update  ) {
+    if ( params.run_update || params.run_assembly_analyze ) {
         //
         // MODULE: Download UHVDB update files
         //
@@ -85,7 +88,6 @@ workflow TOOLKIT {
         ch_uhvdb_genomad_metadata_v1_9_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.genomad_metadata_v1_9_tsv_gz.collect()
         ch_uhvdb_spacers_fna_gz = UHVDB_UPDATEDOWNLOAD.out.spacers_fna_gz
         ch_uhvdb_spacers_tsv_gz = UHVDB_UPDATEDOWNLOAD.out.spacers_tsv_gz
-    
 
         //
         // SUBWORKFLOW: Assemble reads
@@ -112,7 +114,9 @@ workflow TOOLKIT {
             ch_uhvdb_genomad_1_9_hallmarks_hmm,
             ch_uhvdb_genomad_metadata_v1_9_tsv_gz
         )
+    }
 
+    if ( params.run_update ) {
         //
         // SUBWORKFLOW: Update CheckV's database and re-run Checkv to identify HQ viruses
         //
@@ -275,7 +279,24 @@ workflow TOOLKIT {
 
     }
 
-    if ( params.run_analyze ) {
+    if ( params.run_analyze || params.run_assembly_analyze ) {
+        //
+        // MODULE: Extract species reps from UHVDB
+        //
+        CSVTK_SEQKIT_SPECIES(
+            ch_uhvdb_metadata_tsv_gz.combine(ch_uhvdb_unique_reps_fna_gz).map { tsv_gz, fna_gz -> [ [ id: 'uhvdb' ], tsv_gz, fna_gz ] },
+            "--tabs --filter '( \$uhvdb_id == \$species_rep )' | csvtk cut --tabs -f species_rep --out-delimiter '\t'",
+            "",
+            "species_reps"
+        )
+
+        //
+        // MODULE: Create sylph sketch of species reps
+        //
+        SYLPH_SKETCHGENOMES(
+            CSVTK_SEQKIT_SPECIES.out.fna_gz
+        )
+
         //
         // SUBWORKFLOW: Analyse viruses
         //
@@ -283,10 +304,28 @@ workflow TOOLKIT {
             reads,
             sras,
             ch_deacon_idx,
-            ch_uhvdb_unique_reps_fna_gz,
+            CSVTK_SEQKIT_SPECIES.out.fna_gz.map { _meta, fna_gz -> fna_gz }.first(),
+            SYLPH_SKETCHGENOMES.out.syldb.collect().map { _meta, syldb -> [ syldb, file(params.bacteria_syldb) ] },
             ch_uhvdb_metadata_tsv_gz,
             ch_uhvdb_metadata_sylphtax_tsv_gz,
             ch_uhvdb_protein_annotations_parquet
+        )
+    }
+
+    if ( params.run_assembly_analyze ) {
+        //
+        // SUBWORKFLOW: Analyze virus assemblies
+        //
+        ASSEMBLYANALYZE(
+            reads,
+            sras,
+            ch_deacon_idx,
+            ch_fastas,
+            CLASSIFY.out.confident_fna_gz,
+            CLASSIFY.out.classify_tsv_gz,
+            CSVTK_SEQKIT_SPECIES.out.fna_gz.map { _meta, fna_gz -> fna_gz }.first(),
+            REFERENCEANALYZE.out.sylphmpa,
+            ch_uhvdb_metadata_tsv_gz
         )
     }
 

@@ -113,6 +113,10 @@ Below is a schematic overview of the UHVDB toolkit, followed by a brief explanat
 > - Reads are taxonomically profiled using [sylph](https://github.com/bluenote-1577/sylph), with UHVDB and GTDB r226 species representatives as references. Then, reads are aligned to detected UHVDB genomes using [CoverM](https://github.com/wwood/CoverM), and gene coverage is calculated from protein annotations.
 4. UHVDB_REFERENCEACTIVITY
 > - Detected Caudoviricetes species representatives are scored with UHVDB's uninducible prophage classifier. Predictions are written per sample as `*_reference_activity.tsv.gz`.
+5. ASSEMBLYANALYZE (`--run_assembly_analyze`)
+> - Reads are downloaded (when an SRA accession is provided) using sracha, preprocessed with fastp, and human reads are removed with deacon.
+> - Confident and uncertain viruses from CLASSIFY are extracted from the sample assembly. [mVIRs](https://github.com/SushiLab/mVIRs) identifies outward-facing paired ends and clipped reads. [PropagAtE](https://github.com/AnantharamanLab/PropagAtE) estimates prophage activity from the mVIRs BAM. Confident viruses are aligned to UHVDB species representatives with [kmer-db](https://github.com/refresh-bio/kmer-db) and [LZ-ANI](https://github.com/refresh-bio/LZ-ANI) (new2all; >= 70% ANI and 20% query coverage).
+> - Reciprocal-best GANI hits assign assembled-virus `tr`, `mvirs`, and `propagate` values to the matching UHVDB species row in the `REFERENCEACTIVITY` sylphmpa (`*.assemblyactivity.sylphmpa`).
 
 </details>
 
@@ -165,19 +169,26 @@ nextflow run UHVDB/toolkit -profile <conda/mamba/singularity/docker>,test_analyz
 * `virus_host`: for UHVDB species with a predicted host the predicted taxa species is displayed here.
 * `virus_lifestyle`: for UHVDB species, the predicted virus lifestyle is displayed here.
 * `pth_ratio`: for UHVDB a species with predicted host species in the same sample, the phage-to-host (PTH) coverage ratio is displayed here.
+* `ptr`: for bacterial species co-detected by Pilea, the peak-to-trough ratio (PTR) is displayed here.
 * `uninducible_probability`: the probability that a virus is an uninducible prophage as determined using a random forest classifier.
 * `uninducible_tier`: the approximate percent of viruses that are truly uninducible when having a classifier probability of this value.
 
+When `--run_assembly_analyze` is set, a second profile is written to `<outdir>/uhvdb_toolkit/toolkit/assemblyanalyze/uhvdb_assemblyactivity/<sample_id>.assemblyactivity.sylphmpa` with three extra columns on reciprocal-best GANI hits:
+
+* `tr`: `DTR` or `ITR` from the assembled virus, otherwise `NA`.
+* `mvirs`: `OPRs=<n>;HSs=<n>` from mVIRs on the parent contig, otherwise `NA`.
+* `propagate`: PropagAtE `prophage-host_ratio` for the assembled virus, otherwise `NA`.
+
 ```tsv
 #SampleID	SRR8834030_R1.deacon.fastq.gz	Taxonomies_used:['gtdb_r214_metadata.tsv.gz', 'uhvdb_metadata_sylphtax.tsv.gz']
-clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	uninducible_probability	uninducible_tier
-d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA
-Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA
+clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	ptr	uninducible_probability	uninducible_tier
+d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA	NA
+Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA	NA
 .
 .
 .
-d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	NA	NA
-Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	0.685109617048556	85% precision
+d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	1.3473	NA	NA
+Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	NA	0.685109617048556	85% precision
 ```
 
 ### Optional: Run the `test_update` profile to test adding viruses to UHVDB
@@ -308,8 +319,9 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 > 2. download and preprocess reads
 > 3. taxonomically profile reads with sylph and CoverM
 > 4. annotate UHVDB viruses with taxonomy, lifestyle, and predicted hosts
-> 5. calculate phage-to-host ratios
-> 6. label viruses with the probability that the sequence is an uninducible prophage
+> 5. calculate phage-to-host (PTH) ratios
+> 6. calculate peak-to-trough (PTR) ratios for bacteria with sufficient coverage
+> 7. label viruses with the probability that the sequence is an uninducible prophage
 
 4. Analyse the outputs
 > After the pipeline has completed the final outputs will be stored here: (`<outdir>/uhvdb_toolkit/toolkit/referenceanalyze/uhvdb_referenceactivity/<sample_id>.sylphmpa`)
@@ -323,19 +335,22 @@ This section describes how to use the UHVDB/toolkit to (1) update UHVDB and (2) 
 * `virus_host`: for UHVDB species with a predicted host the predicted taxa species is displayed here.
 * `virus_lifestyle`: for UHVDB species, the predicted virus lifestyle is displayed here.
 * `pth_ratio`: for UHVDB a species with predicted host species in the same sample, the phage-to-host (PTH) coverage ratio is displayed here.
+* `ptr`: for bacterial species detected by Pilea, the peak-to-trough ratio (PTR) is displayed here.
 * `uninducible_probability`: the probability that a virus is an uninducible prophage as determined using a random forest classifier.
 * `uninducible_tier`: the approximate percent of viruses that are truly uninducible when having a classifier probability of this value.
 
+When `--run_assembly_analyze` is set, also see `<outdir>/uhvdb_toolkit/toolkit/assemblyanalyze/uhvdb_assemblyactivity/<sample_id>.assemblyactivity.sylphmpa` (`tr`, `mvirs`, `propagate`).
+
 ```tsv
 #SampleID	SRR8834030_R1.deacon.fastq.gz	Taxonomies_used:['gtdb_r214_metadata.tsv.gz', 'uhvdb_metadata_sylphtax.tsv.gz']
-clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	uninducible_probability	uninducible_tier
-d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA
-Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA
+clade_name	relative_abundance	sequence_abundance	ani	coverage	virus_host	virus_lifestyle	pth_ratio	ptr	uninducible_probability	uninducible_tier
+d__Bacteria	99.67099999999996	98.61699999999999	NA	NA	NA	NA	NA	NA	NA
+Viruses	0.3291	0.0056	NA	NA	NA	NA	NA	NA	NA
 .
 .
 .
-d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	NA	NA
-Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	0.685109617048556	85% precision
+d__Bacteria|p__Bacillota_A|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Lachnoanaerobaculum|s__Lachnoanaerobaculum orale|t__GCF_003862485.1	0.4146	0.5129	96.78	4.554	NA	NA	NA	1.3473	NA	NA
+Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|vSUBFAM-584|vGENUS-438|vSUBGENUS-489|vSPECIES-49801|t__UHVDB-556281	0.3291	0.0056	96.24	3.615	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Lachnoanaerobaculum;s__Lachnoanaerobaculum orale	Temperate	0.7937771345875543	NA	0.685109617048556	85% precision
 ```
 
 </details>
@@ -347,14 +362,21 @@ Viruses|Duplodnaviria|Heunggongvirae|Uroviricota|Caudoviricetes|UNKNOWN|vFAM-81|
 
 - Download and include detected bacterial species in CoverM alignment
 - Add inStrain profile and inStrain compare within co-assembly groups to evaluate microdiversity
-- Add Pilea to estimate bacterial growth rate via peak-to-trough (PTR)
 - Add iPHoP for genomovar reps not having a PHIST or spacer host prediction
 - Add DGRscan (ideally a more efficient Python 3 version)
 - Add DefenseFinder/anti-defensefinder and dbAPIs to protein annotations
 - Update GTDB taxonomic assignments to r232
-- Combine additional modules to reduce number of jobs/intermediate file disk space
+- Combine sequential modules to reduce number of jobs and intermediate files
+    - HQFILTER: VCLUST_CSVTK_SEQKIT + KMERDB_LZANI_CSVTK_SEQKIT + CHECKV_UPDATEDATABASE
+    - HQFILTER: CHECKV_COMPLETENESS + UHVDB_HQFILTER
+    - DEREPLICATE: FIND_CONCATENATE_TRTRIMMER_SEQHASHER + UHVDB_UNIQUEHASH
+    - DEREPLICATE: FIND_CONCATENATE + MCL + UHVDB_ANIREPS
+    - ANICLUSTER: MCL + UHVDB_ANIREPS
+    - AAICLUSTER: MCL_FAMILY -> UHVDB_AAICLUSTER
+    - TAXONOMY: FIND_CONCATENATE + UHVDB_TAXONOMY
+    - LIFESTYLE: Remove UHVDB_CATHEADER and UHVDB_LIFESTYLE
 - Implement targeted virus assembly (create prophage masked bacterial database, remove bacterial reads, assemble only remaining reads)
-- Mine novel metagenomes/metatranscriptomes for novel viruses
+- Mine new metagenomes/metatranscriptomes for novel viruses
 
 </details>
 

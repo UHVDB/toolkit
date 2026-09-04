@@ -5,12 +5,10 @@ dependencies:
 - bioconda::sracha=0.3.10
 - bioconda::fastp=1.3.3
 - bioconda::deacon=0.13.2
-- bioconda::sylph=0.9.0
+- bioconda::mvirs=1.1.1
+- bioconda::kmer-db=2.3.1
+- bioconda::lz-ani=1.2.3
 - conda-forge::csvtk=0.37.0
 - bioconda::seqkit=2.13.0
-- bioconda::coverm=0.7.0
-- bioconda::pilea=1.3.8
-- bioconda::pysam=0.22.1
-- conda-forge::numpy=2.4.3
-- conda-forge::polars=1.41.1
 - conda-forge::gzip=1.14
+- bioconda::vrhyme=1.1.0

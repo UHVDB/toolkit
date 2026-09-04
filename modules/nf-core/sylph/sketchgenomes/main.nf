@@ -11,7 +11,7 @@ process SYLPH_SKETCHGENOMES {
     tuple val(meta), path(fasta, stageAs: 'genomes/')
 
     output:
-    tuple val(meta), path('*.syldb'), emit: syldb
+    tuple val(meta), path('*.c200.syldb'), emit: syldb
 
     when:
     task.ext.when == null || task.ext.when
@@ -24,9 +24,9 @@ process SYLPH_SKETCHGENOMES {
 
     sylph sketch \\
         -t ${task.cpus} \\
-        ${args} \\
+        -i -c 200 \\
         --gl genomes.txt \\
-        -o ${prefix}
+        -o ${prefix}.c200
     """
 
     stub:
@@ -34,6 +34,6 @@ process SYLPH_SKETCHGENOMES {
     def args = task.ext.args ?: ''
     """
     echo "${args}"
-    touch ${prefix}.syldb
+    touch ${prefix}.c200.syldb
     """
 }

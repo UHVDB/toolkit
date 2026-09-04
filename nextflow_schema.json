@@ -66,6 +66,11 @@
                     "default": false,
                     "description": "Run the metagenome analyse workflow (sylph profiling, PTH ratios, uninducible scores)."
                 },
+                "run_assembly_analyze": {
+                    "type": ["boolean", "string"],
+                    "default": false,
+                    "description": "Assemble and classify sample viruses, run mVIRs, Propagate, and vClust new2all, then annotate REFERENCEACTIVITY sylphmpa via reciprocal-best GANI hits."
+                },
                 "dtr_sequences_file": {
                     "type": "string",
                     "format": "file-path",

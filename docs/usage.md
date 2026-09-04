@@ -4,10 +4,11 @@
 
 ## Introduction
 
-UHVDB/toolkit has two modes, controlled by boolean flags (you may enable either or both):
+UHVDB/toolkit has three modes, controlled by boolean flags (you may enable any combination):
 
 - `--run_update` — classify, cluster, annotate, and publish next-release UHVDB tables under `<outdir>/uhvdb/`.
 - `--run_analyze` — profile metagenomes against the current UHVDB release (sylph, PTH ratios, uninducible scores).
+- `--run_assembly_analyze` — assemble and classify sample viruses, run mVIRs, Propagate, and vClust new2all, then annotate `REFERENCEACTIVITY` sylphmpa rows via reciprocal-best GANI hits.
 
 Downloaded databases are cached under `--dbdir` (default: `databases`).
 
@@ -59,7 +60,7 @@ nextflow run UHVDB/toolkit \
   --run_analyze
 ```
 
-For database updates, add `--run_update` (and typically `--dtr_sequences_file` when classifying DTR viruses).
+For database updates, add `--run_update` (and typically `--dtr_sequences_file` when classifying DTR viruses). For assembly-based mVIRs/Propagate/vClust signals linked to UHVDB species, add `--run_assembly_analyze` (this also runs assembly, classify, and reference analyse).
 
 > [!WARNING]
 > Provide pipeline parameters via the CLI or Nextflow `-params-file`. Custom config files with `-c` must not set parameters; see [nf-core docs](https://nf-co.re/docs/running/run-pipelines#using-parameter-files).

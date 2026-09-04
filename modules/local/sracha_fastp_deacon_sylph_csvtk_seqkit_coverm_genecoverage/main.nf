@@ -4,8 +4,8 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/f7/f71fcf13109179464415b2307157da066c9b68aee280313cd3265cb49eb83f0b/data' :
-        'community.wave.seqera.io/library/sracha_fastp_deacon_sylph_pruned:540c70826f459154' }"
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/52/52ad81311482c929788188ff95f0c458ea8e5b4ba3d13ab316dff725a27f4dba/data' :
+        'community.wave.seqera.io/library/sracha_fastp_deacon_sylph_pruned:38fbe21bf5eb32c7' }"
 
     input:
     tuple val(meta), val(acc)
@@ -13,11 +13,13 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
     path(db)
     path(species_reps_fna_gz)
     path(annotations)
+    path(pilea_db)
 
     output:
     tuple val(meta), path("*.profile.tsv")              , emit: tsv
     tuple val(meta), path("*.depth.tsv.gz")             , emit: depth_tsv_gz         , optional: true
     tuple val(meta), path("*.gene_coverage.tsv.gz")     , emit: gene_coverage_tsv_gz , optional: true
+    tuple val(meta), path("*.output.tsv")               , emit: pilea_tsv
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
@@ -39,6 +41,7 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
         deacon_reads_out="--output ${acc}_R1.deacon.fastq.gz --output2 ${acc}_R2.deacon.fastq.gz"
         sylph_reads="-1 ${acc}_R1.deacon.fastq.gz -2 ${acc}_R2.deacon.fastq.gz"
         coverm_reads="--coupled ${acc}_R1.deacon.fastq.gz ${acc}_R2.deacon.fastq.gz"
+        pilea_pe=1
     else
         # sracha may emit *_1.fastq.gz or a single ${acc}.fastq.gz
         if ls ${acc}/*_1.fastq.gz 1> /dev/null 2>&1; then
@@ -54,6 +57,7 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
         deacon_reads_out="--output ${acc}.deacon.fastq.gz"
         sylph_reads="-r ${acc}.deacon.fastq.gz"
         coverm_reads="--single ${acc}.deacon.fastq.gz"
+        pilea_pe=0
     fi
 
     ### Run fastp
@@ -83,6 +87,28 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
         \${sylph_reads} \\
         -t ${task.cpus} \\
         --output-file ${prefix}.profile.tsv
+
+    ### Run pilea profile on deacon-filtered reads
+    # Symlink to *_R1/*_R2.fastq.gz so pilea pairs mates (*.deacon.fastq.gz breaks pairing)
+    mkdir -p pilea_out
+    if [ "\${pilea_pe}" -eq 1 ]; then
+        ln -sf ${acc}_R1.deacon.fastq.gz ${prefix}_R1.fastq.gz
+        ln -sf ${acc}_R2.deacon.fastq.gz ${prefix}_R2.fastq.gz
+        pilea profile \\
+            ${prefix}_R1.fastq.gz ${prefix}_R2.fastq.gz \\
+            -d ${pilea_db} \\
+            -o pilea_out \\
+            -t ${task.cpus}
+    else
+        ln -sf ${acc}.deacon.fastq.gz ${prefix}.fastq.gz
+        pilea profile \\
+            --single ${prefix}.fastq.gz \\
+            -d ${pilea_db} \\
+            -o pilea_out \\
+            -t ${task.cpus}
+    fi
+    mv pilea_out/output.tsv ${prefix}.output.tsv
+    rm -rf pilea_out ${prefix}.kmc ${prefix}_R1.fastq.gz ${prefix}_R2.fastq.gz ${prefix}.fastq.gz
 
     ### Extract contained viruses
     csvtk \\
@@ -137,6 +163,7 @@ process SRACHA_FASTP_DEACON_SYLPH_CSVTK_SEQKIT_COVERM_GENECOVERAGE {
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.profile.tsv
+    touch ${prefix}.output.tsv
     echo "" | gzip > ${prefix}.depth.tsv.gz
     python -c "import gzip; gzip.open('${prefix}.gene_coverage.tsv.gz', 'wt').write('')"
     """

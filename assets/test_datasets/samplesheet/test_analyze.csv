@@ -1,2 +1,2 @@
-sample,project,group,biosample,acc,fastq_1,fastq_2,fna
-N101S1,PRJNA530252,group1,SAMN11310209,SRR8834030,,,
+sample,project,group,biosample,acc,source_type,fastq_1,fastq_2,fna
+N101S1,PRJNA530252,group1,SAMN11310209,SRR8834030,Assembly,,,

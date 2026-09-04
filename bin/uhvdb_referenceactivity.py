@@ -45,6 +45,7 @@ SYLPHMPA_OUTPUT_COLS = [
     "virus_host",
     "virus_lifestyle",
     "pth_ratio",
+    "ptr",
     "uninducible_probability",
     "uninducible_tier",
 ]
@@ -86,6 +87,11 @@ def parse_args(args=None):
         help="Path to gene-coverage TSV (e.g. sample.gene_coverage.tsv.gz).",
     )
     parser.add_argument(
+        "--pilea",
+        required=True,
+        help="Path to Pilea output TSV (e.g. sample.output.tsv).",
+    )
+    parser.add_argument(
         "-p",
         "--model_path",
         required=True,
@@ -118,9 +124,9 @@ def parse_args(args=None):
         "-so",
         "--sylph_tax_output",
         required=True,
-        help="Annotated sylph-tax MPA path with virus lifestyle, PTH ratio, uninducible probability, and tier.",
+        help="Annotated sylph-tax MPA path with virus lifestyle, PTH ratio, Pilea PTR, uninducible probability, and tier.",
     )
-    parser.add_argument("--version", action="version", version="1.3.0")
+    parser.add_argument("--version", action="version", version="1.4.0")
     return parser.parse_args(args)
 
 
@@ -695,6 +701,10 @@ def _empty_pth():
     return pl.DataFrame(schema={"species_cluster_id": pl.Int64, "pth_ratio": pl.Float64})
 
 
+def _empty_ptr():
+    return pl.DataFrame(schema={"species": pl.Utf8, "ptr": pl.Float64})
+
+
 def _empty_inactivity():
     return pl.DataFrame(
         schema={
@@ -1060,7 +1070,32 @@ def compute_pth_ratio(viruses, bac, host):
     return pth.select(["species_cluster_id", "pth_ratio"])
 
 
-def write_annotated_sylphmpa(sylph_tax_path, output_path, lifestyle, pth, inactivity):
+def read_pilea_ptr(path):
+    empty = _empty_ptr()
+    raw = _read_csv(path, separator="\t")
+    if raw is None or "taxonomy" not in raw.columns:
+        return empty
+    ptr_col = "PTR" if "PTR" in raw.columns else ("ptr" if "ptr" in raw.columns else None)
+    if ptr_col is None:
+        return empty
+    return (
+        raw.with_columns(
+            [
+                pl.col("taxonomy")
+                .cast(pl.Utf8)
+                .str.replace_all(";", "|")
+                .str.extract(r"s__([^|;]+)", 1)
+                .alias("species"),
+                pl.col(ptr_col).cast(pl.Float64, strict=False).alias("ptr"),
+            ]
+        )
+        .filter(pl.col("species").is_not_null() & pl.col("ptr").is_not_null())
+        .select(["species", "ptr"])
+        .unique("species", keep="first")
+    )
+
+
+def write_annotated_sylphmpa(sylph_tax_path, output_path, lifestyle, pth, inactivity, pilea_ptr):
     comment, df = read_sylphmpa(sylph_tax_path, as_strings=True)
     if df is None:
         df = pl.DataFrame(
@@ -1073,11 +1108,25 @@ def write_annotated_sylphmpa(sylph_tax_path, output_path, lifestyle, pth, inacti
                 "Virus_host (if viral)": pl.Utf8,
             }
         )
+    is_bacteria = (
+        pl.col("clade_name").str.starts_with("d__Bacteria")
+        | pl.col("clade_name").str.contains(r"(^|\|)d__Bacteria")
+    )
     df = df.with_columns(
-        pl.when(pl.col("clade_name").str.contains(r"vSPECIES-\d+"))
-        .then(pl.col("clade_name").str.extract(r"vSPECIES-(\d+)", 1).cast(pl.Int64, strict=False))
-        .otherwise(None)
-        .alias("_species_cluster_id")
+        [
+            pl.when(pl.col("clade_name").str.contains(r"vSPECIES-\d+"))
+            .then(pl.col("clade_name").str.extract(r"vSPECIES-(\d+)", 1).cast(pl.Int64, strict=False))
+            .otherwise(None)
+            .alias("_species_cluster_id"),
+            pl.when(is_bacteria)
+            .then(
+                pl.col("clade_name")
+                .str.replace_all(";", "|")
+                .str.extract(r"s__([^|;]+)", 1)
+            )
+            .otherwise(None)
+            .alias("_ptr_species"),
+        ]
     )
     df = (
         df.join(lifestyle, left_on="_species_cluster_id", right_on="species_cluster_id", how="left")
@@ -1088,7 +1137,8 @@ def write_annotated_sylphmpa(sylph_tax_path, output_path, lifestyle, pth, inacti
             right_on="species_cluster_id",
             how="left",
         )
-        .drop("_species_cluster_id")
+        .join(pilea_ptr, left_on="_ptr_species", right_on="species", how="left")
+        .drop(["_species_cluster_id", "_ptr_species"])
     )
     for old, new in SYLPHMPA_COLUMN_RENAMES.items():
         if old in df.columns:
@@ -1108,6 +1158,7 @@ def finish(args, uhvdb, scored):
     if bac.height == 0:
         bac = bacteria_from_profile(args.profile, args.sample_id)
     pth = compute_pth_ratio(viruses, bac, host)
+    pilea_ptr = read_pilea_ptr(args.pilea)
     if scored.height and "predicted_inactive_probability" in scored.columns:
         inactivity = scored.select(
             [
@@ -1119,7 +1170,7 @@ def finish(args, uhvdb, scored):
     else:
         inactivity = _empty_inactivity()
     write_annotated_sylphmpa(
-        args.sylph_tax, args.sylph_tax_output, lifestyle, pth, inactivity
+        args.sylph_tax, args.sylph_tax_output, lifestyle, pth, inactivity, pilea_ptr
     )
     write_tsv(scored, args.output)
     return 0

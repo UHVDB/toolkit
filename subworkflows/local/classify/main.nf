@@ -69,24 +69,32 @@ workflow CLASSIFY {
     ch_hcfilter_tsv_gz  = ch_hcfilter_tsv_gz.mix(GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.hcfilter_tsv_gz)
 
     // Identify remote ASSEMBLY fasta files and split them into chunks of size params.assembly_split_size
-    ch_remote_assemblies = fastas.assembly
-        .filter { _meta, fasta -> file(fasta).toUri().toString().startsWith('https://') }
-        .map { meta, fasta ->
-            def source_db = meta.source_db ?: 'NO_DB'
-            def body_site = meta.body_site ?: 'Other'
-            return [ [ body_site: body_site, source_db: source_db ], [ meta.id, fasta ] ]
-        }
-        .groupTuple() // Combine URLs by source_db, source_type, and body_site
-        .map { meta, id_fasta_list ->
-            id_fasta_list
-                .collate(params.assembly_split_size) // Split fasta files into chunks of size params.assembly_split_size
-                .withIndex() // Add index to each chunk
-                .collect { batch, idx ->
-                    def batch_meta = meta + [ id: "remote_${meta.source_db}_${meta.body_site}_batch_${idx}" ]
-                    [ batch_meta, batch ] // Create a new meta with the source_db and batch index
-                }
-        }
-        .flatMap { batches -> batches }   // one [meta, batch] per emission
+    if (params.run_assembly_analyze) {
+        ch_remote_assemblies = fastas.assembly
+            .filter { _meta, fasta -> file(fasta).toUri().toString().startsWith('https://') }
+            .map { meta, fasta ->
+                [ meta, [ [ meta.id, fasta ] ], fasta ]
+            }
+    } else {
+        ch_remote_assemblies = fastas.assembly
+            .filter { _meta, fasta -> file(fasta).toUri().toString().startsWith('https://') }
+            .map { meta, fasta ->
+                def source_db = meta.source_db ?: 'NO_DB'
+                def body_site = meta.body_site ?: 'Other'
+                return [ [ body_site: body_site, source_db: source_db ], [ meta.id, fasta ] ]
+            }
+            .groupTuple() // Combine URLs by source_db, source_type, and body_site
+            .map { meta, id_fasta_list ->
+                id_fasta_list
+                    .collate(params.assembly_split_size) // Split fasta files into chunks of size params.assembly_split_size
+                    .withIndex() // Add index to each chunk
+                    .collect { batch, idx ->
+                        def batch_meta = meta + [ id: "remote_${meta.source_db}_${meta.body_site}_batch_${idx}" ]
+                        [ batch_meta, batch ] // Create a new meta with the source_db and batch index
+                    }
+            }
+            .flatMap { batches -> batches }   // one [meta, batch] per emission
+    }
 
     //
     // MODULE: Download, length filter, and classify remote fasta files
@@ -105,26 +113,34 @@ workflow CLASSIFY {
     ch_classify_tsv_gz  = ch_classify_tsv_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.classify_tsv_gz)
     ch_hcfilter_tsv_gz  = ch_hcfilter_tsv_gz.mix(ARIA2C_SEQKIT_GENOMAD_CHECKV_VIRALVERIFY_CLASSIFY.out.hcfilter_tsv_gz)
 
-    // Identify local ASSEMBLY fasta files and split them into chunks of size params.assembly_split_size
-    ch_local_assemblies = rmEmptyFastAs(fastas.assembly)
-        .filter { _meta, fasta -> !file(fasta).toUri().toString().startsWith('https://') }
-        .map { meta, fasta ->
-            def source_db = meta.source_db ?: 'NO_DB'
-            def body_site = meta.body_site ?: 'Other'
-            return [ [ body_site: body_site, source_db: source_db ], [ meta.id, fasta ] ]
-        }
-        .groupTuple() // Combine URLs by source_db, source_type, and body_site
-        .map { meta, id_fasta_list ->
-            id_fasta_list
-                .collate(params.assembly_split_size) // Split fasta files into chunks of size params.assembly_split_size
-                .withIndex() // Add index to each chunk
-                .collect { batch, idx ->
-                    def batch_meta = meta + [ id: "local_${meta.source_db}_${meta.body_site}_batch_${idx}" ]
-                    [ batch_meta, batch ] // Create a new meta with the source_db and batch index
-                }
-        }
-        .flatMap { batches -> batches }   // one [meta, batch] per emission
-        .map { meta, id_fasta -> [ meta, id_fasta, id_fasta.collect { _id, fasta -> fasta } ] }
+    // Identify local ASSEMBLY fasta files (one classify job per sample)
+    if (params.run_assembly_analyze) {
+        ch_local_assemblies = rmEmptyFastAs(fastas.assembly)
+            .filter { _meta, fasta -> !file(fasta).toUri().toString().startsWith('https://') }
+            .map { meta, fasta ->
+                [ meta, [ [ meta.id, fasta ] ], fasta ]
+            }
+    } else {
+        ch_local_assemblies = rmEmptyFastAs(fastas.assembly)
+            .filter { _meta, fasta -> !file(fasta).toUri().toString().startsWith('https://') }
+            .map { meta, fasta ->
+                def source_db = meta.source_db ?: 'NO_DB'
+                def body_site = meta.body_site ?: 'Other'
+                return [ [ body_site: body_site, source_db: source_db ], [ meta.id, fasta ] ]
+            }
+            .groupTuple() // Combine URLs by source_db, source_type, and body_site
+            .map { meta, id_fasta_list ->
+                id_fasta_list
+                    .collate(params.assembly_split_size)
+                    .withIndex() // Add index to each chunk
+                    .collect { batch, idx ->
+                        def batch_meta = meta + [ id: "local_${meta.source_db}_${meta.body_site}_batch_${idx}" ]
+                        [ batch_meta, batch ] // Create a new meta with the source_db and batch index
+                    }
+            }
+            .flatMap { batches -> batches }   // one [meta, batch] per emission
+            .map { meta, id_fasta -> [ meta, id_fasta, id_fasta.collect { _id, fasta -> fasta } ] }
+    }
 
     //
     // MODULE: Length filter and classify local fasta files
